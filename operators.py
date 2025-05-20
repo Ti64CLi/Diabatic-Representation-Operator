@@ -146,8 +146,19 @@ class Operator:
             self.__addcomponent(component, csign)
 
     def __addcomponent(self, component, csign):
-        if self.components.get(component.k):
-            # possible ?
+        kcomponent = self.components.get(component.k)
+
+        if kcomponent:
+            kcomponent, kcsign = kcomponent
+
+            #if np.any(component.matrix != kcomponent.matrix):
+            if kcsign == csign:
+                kcomponent += component
+            else:
+                kcomponent -= component
+
+            self.components[component.k] = (kcomponent, kcsign)
+
             return False
 
         self.components[component.k] = (component, csign)
@@ -273,8 +284,10 @@ def A_x(n, gamma, alpha1, alpha2, p):
                         continue
                     elif k >= 0:
                         if sigma1 * sigma2 > 0:
+                            #print("Adding X^"+str(k)+"_"+str(-sigma2))
                             Ax += OperatorComponent.X(-sigma2, k)
                         else:
+                            #print("Adding X~^"+str(k)+"_"+str(-sigma2))
                             Ax += OperatorComponent.X_tilde(-sigma2, k)
 
         if s == 8:
