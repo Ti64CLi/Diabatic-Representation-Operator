@@ -44,12 +44,8 @@ def hamiltonian(n, alpha, p, name = "H"):
     
     return H
 
-"""print(hamiltonian(6, 1, 4, "H(1, 1)"))
-print(hamiltonian(6, 2, 4, "H(2, 2)"))
-print(op.A_x(6, 0, 1, 1, 4))
-print(op.A_x(6, 0, 2, 2, 4))
-print(op.A_x(6, 0, 1, 2, 4))"""
-"""print(op.operator("H(1, 1)", op.Symmetry.A1, 6, 1, 1, p=4))
-print(op.A_y(5, 1, 1, 2, 4))
-print(op.operator("", op.Symmetry.A1, 3, 1, 0, p=2))"""
-print(op.operator("H", op.Symmetry.A1, 0, 3, op.Symmetry.E, 1, op.Symmetry.A1, 0, p=4))
+H = op.operator("H", op.Symmetry.A1, 0, 3, op.Symmetry.E, 1, op.Symmetry.A1, 0, p=4)
+print(H)
+for p in [0, 1, 2, 4]:
+    print("At order p = ", p, " :")
+    print(H[0].extract_order(p))
