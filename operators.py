@@ -13,7 +13,7 @@ def sign(n):
         return "+"
     elif n < 0:
         return "-"
-    
+
     return "0"
 
 class Symmetry:
@@ -33,13 +33,13 @@ class OperatorComponent:
     """
     Representation of operators components (mainly X^k_sigma and Y^k_sigma) as matrices (2x2 by blocks and function of Q variables)
     """
-    
+
     def __init__(self, m, k):
         #assert isinstance(ctype, str)
         assert m.shape == (2, 2)
         assert isinstance(k, int)
         assert k >= 0
-        
+
         #self.ctype = ctype
         self.matrix = m
         self.k = k
@@ -47,10 +47,10 @@ class OperatorComponent:
     def __repr__(self):
         #s = self.ctype + "^" + str(self.k) + " = \n"
         s = ""
-        
+
         for i in range(2):
             s += "( "
-            
+
             for j in range(2):
                 if self.matrix[i, j] == 0:
                     s += "     0     "
@@ -61,58 +61,58 @@ class OperatorComponent:
                     s += sign(self.matrix[i, j].imag)
                     s += "Im(Q+^" + str(self.k) + ") "
             s += ")\n"
-        
+
         #s += "k = " + str(self.k) + " and sigma = " + str(self.sigma) + "\n"
-        
+
         return s
 
     def __add__(self, other):
         assert isinstance(other, OperatorComponent)
         assert self.k == other.k
-        
+
         return OperatorComponent(self.matrix + other.matrix, self.k)
 
     def __sub__(self, other):
         assert isinstance(other, OperatorComponent)
         assert self.k == other.k
-        
+
         return OperatorComponent(self.matrix - other.matrix, self.k)
 
     def reduce(self, beta):
         assert isinstance(beta, int)
         assert beta > 0
         assert self.k // beta == self.k / beta
-        
+
         return OperatorComponent(self.matrix, self.k // beta)
-    
+
     def X(sigma, k):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
-        
+
         return OperatorComponent(np.array([[1, sigma * 1j], [sigma * 1j, (-1)**sigma]]), k)
-    
+
     def Y(sigma, k):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
-        
+
         return OperatorComponent(np.array([[1j, -sigma], [-sigma, (-1)**sigma]]), k)
-    
+
     def X_tilde(sigma, k):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
-        
+
         return OperatorComponent(np.array([[1, sigma * 1j], [-sigma * 1j, 1]]), k)
-    
+
     def Y_tilde(sigma, k):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
-        
+
         return OperatorComponent(np.array([[1j, -sigma], [sigma, 1j]]), k)
-    
+
     def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
         if alpha1 == 0 and s1 != Symmetry.A1 and s1 != Symmetry.A2:
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
@@ -124,7 +124,7 @@ class OperatorComponent:
             raise ValueError("alpha1 should be n/2 for a state of B (B1/B2) symmetry")
         if (s2 == Symmetry.B1 or s2 == Symmetry.B2) and alpha2 != (n // 2):
             raise ValueError("alpha2 should be n/2 for a state of B (B1/B2) symmetry")
-        
+
         if s1 != Symmetry.E:
             self.matrix[(s1 + 1) % 2, :] = 0
         if s2 != Symmetry.E:
@@ -138,70 +138,71 @@ class State:
 class Operator:
     def __init__(self, name, oc=[]):
         assert isinstance(name, str)
-        
+
         self.name = name
         self.components = {}
-        
+
         for component, csign in oc:
             self.__addcomponent(component, csign)
-    
+
     def __addcomponent(self, component, csign):
         if self.components.get(component.k):
+            # possible ?
             return False
-        
+
         self.components[component.k] = (component, csign)
         return True
-    
+
     def __add__(self, other):
         res = Operator(self.name, self.components.values())
-        
+
         if isinstance(other, OperatorComponent):
             res.__addcomponent(other, 1)
-        
+
         return res
-    
+
     def __sub__(self, other):
         res = Operator(self.name, self.components.values())
-        
+
         if isinstance(other, OperatorComponent):
             res.__addcomponent(other, -1)
-        
+
         return res
-    
+
     def __repr__(self):
         s = self.name + " =\n"
-        
+
         if len(self.components) == 0:
             return s + "0"
-        
+
         i = 0
-        
+
         for component, csign in self.components.values():
             if i != 0:
                 s += sign(csign)
             #s += " inv*"
             s += str(component)
-            
+
             i += 1
-        
+
         return s
-    
+
     def reduce(self, beta):
         res = Operator(self.name, [])
-        
+
         for component, csign in self.components.values():
             redc = component.reduce(beta)
-            
+
             if csign > 0:
                 res += redc
             else:
                 res -= redc
-        
+
         return res
-    
+
     def explicit(self):
         res = Operator(self.name, [])
-        
+
         for component, csign in self.components.values():
             if res.components.get(component.k):
                 if csign > 0:
@@ -210,9 +211,9 @@ class Operator:
                     res.components[component.k] -= component
             else:
                 res += component
-        
+
         return res
-    
+
     def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
         if alpha1 == 0 and s1 != Symmetry.A1 and s1 != Symmetry.A2:
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
@@ -228,34 +229,45 @@ class Operator:
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
         if (s2 == Symmetry.A1 or s2 == Symmetry.A2) and alpha2 != 0:
             raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
-            
+
         mask = np.ones((2, 2))
-        
+
         if s1 != Symmetry.E:
             mask[(s1 + 1) % 2, :] = 0
         if s2 != Symmetry.E:
             mask[:, (s2 + 1) % 2] = 0
-        
+
         for component, _ in self.components.values():
             component.matrix *= mask
+
+    def extract_order(self, p):
+        assert p >= 0
+
+        res = Operator(self.name, [])
+
+        for component, csign in self.components.values():
+            if component.k == p:
+                res.__addcomponent(component, csign)
+
+        return res
 
 def A_x(n, gamma, alpha1, alpha2, p):
     assert gamma >= 0
     assert alpha1 >= 0
     assert alpha2 >= 0
-    
+
     Ax = Operator("A_x", [])
-    
+
     j = 0
-    
+
     while True:
         s = 0
-        
+
         for sg in [-1, 1]:
             for sigma1 in [-1, 1]:
                 for sigma2 in [-1, 1]:
                     k = n * j + sg * gamma + sigma1 * alpha1 + sigma2 * alpha2
-                    
+
                     if k > p:
                         s += 1
                         continue
@@ -264,30 +276,30 @@ def A_x(n, gamma, alpha1, alpha2, p):
                             Ax += OperatorComponent.X(-sigma2, k)
                         else:
                             Ax += OperatorComponent.X_tilde(-sigma2, k)
-        
+
         if s == 8:
             break
-        
+
         j += 1
-    
+
     return Ax
 
 def A_y(n, gamma, alpha1, alpha2, p):
     assert gamma >= 0
     assert alpha1 >= 0
     assert alpha2 >= 0
-    
+
     Ay = Operator("A_y", [])
-    
+
     j = 0
-    
+
     while True:
         s = 0
-        
+
         for sigma1 in [-1, 1]:
             for sigma2 in [-1, 1]:
                 k = n * j + gamma + sigma1 * alpha1 - sigma2 * alpha2
-                
+
                 if k > p:
                     s += 1
                     continue
@@ -296,11 +308,11 @@ def A_y(n, gamma, alpha1, alpha2, p):
                         Ay += OperatorComponent.X(-sigma2, k)
                     else:
                         Ay += OperatorComponent.X_tilde(-sigma2, k)
-        
+
         for sigma1 in [-1, 1]:
             for sigma2 in [-1, 1]:
                 k = n * j - gamma + sigma1 * alpha1 - sigma2 * alpha2
-                
+
                 if k > p:
                     s += 1
                     continue
@@ -309,18 +321,18 @@ def A_y(n, gamma, alpha1, alpha2, p):
                         Ay -= OperatorComponent.X(-sigma2, k)
                     else:
                         Ay -= OperatorComponent.X_tilde(-sigma2, k)
-        
+
         if s == 8:
             break
-        
+
         j += 1
-    
+
     return Ay
 
 def operator(name, opsymmetry, gamma, n, s1, alpha1, s2, alpha2, p=2):
     """
     Computes the expansion (to order p) of an operator given its symmetry and the symmetry of each state
-    
+
     Args :
         - name : name of the operator (for a display purpose)
         - opsymmetry : operator symmetry (A1/2, B1/2, E)
@@ -332,12 +344,12 @@ def operator(name, opsymmetry, gamma, n, s1, alpha1, s2, alpha2, p=2):
         - alpha2 : the order of the symmetry if the second state is of E symmetry, otherwise is constrained by A1/2 or B1/2 symmetry
         - p[=2] : max order of the expansion
     """
-    
+
     if (opsymmetry == Symmetry.B1 or opsymmetry == Symmetry.B2) and n % 2 != 0:
         raise Exception("n must be even if the operator is of B symmetry")
-    
+
     op = []
-    
+
     if opsymmetry == Symmetry.A1:
         op = [A_x(n, 0, alpha1, alpha2, p), Operator("A_y")]
     elif opsymmetry == Symmetry.A2:
@@ -348,10 +360,10 @@ def operator(name, opsymmetry, gamma, n, s1, alpha1, s2, alpha2, p=2):
         op = [Operator("A_x"), A_y(n, n // 2, alpha1, alpha2, p)]
     else:
         op = [A_x(n, gamma, alpha1, alpha2, p), A_y(n, gamma, alpha1, alpha2, p)]
-    
+
     op[0].apply_symmetry(n, s1, alpha1, s2, alpha2)
     op[1].apply_symmetry(n, s1, alpha1, s2, alpha2)
-    
+
     return op
 
 #def operator(name, opsymmetry, n, )
