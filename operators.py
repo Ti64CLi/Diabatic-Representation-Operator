@@ -7,6 +7,7 @@ Created on Mon May 19 10:50:49 2025
 """
 
 import numpy as np
+from symmetry import Symmetry
 
 def sign(n):
     if n > 0:
@@ -15,13 +16,6 @@ def sign(n):
         return "-"
 
     return "0"
-
-class Symmetry:
-    A1 = 0
-    A2 = 1
-    B1 = 2
-    B2 = 3
-    E = 4
 
 class ComponentType:
     X = "X"
@@ -41,7 +35,7 @@ class OperatorComponent:
         assert k >= 0
 
         #self.ctype = ctype
-        self.matrix = m
+        self.matrix = m[:, :]
         self.k = k
 
     def __repr__(self):
