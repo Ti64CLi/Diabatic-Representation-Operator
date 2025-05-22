@@ -51,6 +51,7 @@ for p in range(5):
     print("\nAt order p =", p, ":")
     print(H11[0].extract_order(p))
 
+"""
 H22 = op.operator("H(2,2)", op.Symmetry.A1, 0, 6, op.Symmetry.E, 2, op.Symmetry.E, 2, p=4)
 print(H22)
 print(H22[0].reduce(2))
@@ -63,3 +64,4 @@ print(H12)
 for p in range(5):
     print("\nAt order p =", p, ":")
     print(H12[0].extract_order(p))
+"""
