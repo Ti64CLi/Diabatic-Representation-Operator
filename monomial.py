@@ -248,7 +248,7 @@ def appearing_monomials_E(n: int, nvarsym: [int]) -> [([Monomial], [Rho])]:
 
     for signs in range(2 ** (F - 1)):
         variables = get_variables(nvarsym, signs)
-        print(variables)
+        #print(variables)
         amonomials += [compute_appearing_monomials_E(variables, n)]
 
     return amonomials
