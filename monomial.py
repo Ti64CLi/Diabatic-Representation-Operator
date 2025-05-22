@@ -8,6 +8,10 @@ Created on Wed May 21 09:51:22 2025
 
 import numpy as np
 
+#################
+### utilities ###
+#################
+
 sign_sup = "⁻⁰⁺"
 sign_sub = "₋₀₊"
 num_sup = "⁰¹²³⁴⁵⁶⁷⁸⁹"
@@ -45,6 +49,10 @@ def sign2sub(n: int) -> str:
 def sign2sup(n: int) -> str:
     return sign_sup[1 + n]
 
+#######################
+### Data structures ###
+#######################
+
 class Variable:
     def __init__(self, sign, symmetry):
         self.sign = sign
@@ -66,12 +74,15 @@ class Variable:
     def order(self) -> int:
         return self.sign * self.symmetry
 
+# could condensate Rho and R class ass one with an extra parameter imaginary for example
+# this parameter would determine whether it's a r (i = 0) or rho (i = 1)
 class Rho:
-    def __init__(self, variables: [Variable], orders: [int]):
+    def __init__(self, variables: [Variable], orders: [int], inv=False):
         assert len(variables) == len(orders)
 
         self.variables = np.array(variables)
         self.orders = np.array(orders)
+        self.inv = inv
 
     def __repr__(self) -> str:
         if np.all(np.array(self.orders) == 0):
@@ -83,12 +94,40 @@ class Rho:
             s += sign2sub(variable.sign)
             s += num2sub(self.orders[i])
 
+        if self.inv:
+            s += num2sup(2)
+
         return s
 
     def __eq__(self, other):
         assert isinstance(other, Rho)
 
         return np.all(self.variables == other.variables) and np.all(self.orders == other.orders)
+
+    def as_r(self):
+        return R(self.variables, self.orders)
+
+class R:
+    def __init__(self, variables: [Variable], orders: [int]):
+        assert len(variables) == len(orders)
+
+        self.variables = variables
+        self.orders = orders
+
+    def __repr__(self):
+        if len(self.variables) == 0:
+            return "1"
+
+        s = "r"
+
+        for i, variable in enumerate(self.variables):
+            s += sign2sub(variable.sign)
+            s += num2sub(self.orders[i])
+
+        return s
+
+    def as_rho(self):
+        return Rho(self.variables, self.orders)
 
 class Monomial:
     def __init__(self, variables: [Variable], orders: [int]):
@@ -131,7 +170,7 @@ class Monomial:
 
         return o1 == o2
         """
-        return self.__repr__() == other.__repr__()
+        return str(self) == str(other)
 
     def as_rho(self) -> Rho:
         return Rho(self.variables, self.orders)
@@ -147,6 +186,22 @@ class Monomial:
 
         return o
 
+#################################
+### General purpose functions ###
+#################################
+
+def insert_element(l: list, e) -> list:
+    for elem in l:
+        if e == elem:
+            return l
+
+    return l + [e]
+
+def merge_list(l1: list, l2: list) -> list:
+    for e in l2:
+        l1 = insert_element(l1, e)
+
+    return l1
 
 def weights(variables: [Variable]) -> [int]:
     w = []
@@ -253,19 +308,6 @@ def appearing_monomials_E(n: int, nvarsym: [int]) -> [([Monomial], [Rho])]:
 
     return amonomials
 
-def insert_element(l: list, e) -> list:
-    for elem in l:
-        if e == elem:
-            return l
-
-    return l + [e]
-
-def merge_list(l1: list, l2: list) -> list:
-    for e in l2:
-        l1 = insert_element(l1, e)
-
-    return l1
-
 def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho]):
     if len(amonoms) == 0:
         return [], []
@@ -280,3 +322,37 @@ def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho]):
         rhos += arhos[1:] # all rhos should be unique
 
     return monomials, rhos
+
+def invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
+    monoms, rhos = amonoms
+
+    if len(monoms) == 0 and len(rhos) == 0:
+        return []
+
+    inv = []
+    variables = []
+
+    if len(monoms) != 0:
+        variables = monoms[0].variables
+    else:
+        variables = rhos[0].variables
+
+    F = len(variables)
+
+    # TODO: add Q+Q- as invariants
+
+    # add Q^n as invariants
+    for i, variable in enumerate(variables):
+        orders = [0] * F
+        orders[i] = n
+
+        inv += [Monomial(variables, orders)]
+
+    # add r and rho^2 as invariants
+    for rho in rhos:
+        if str(rho) != "1":
+            inv += [rho.as_r()]
+
+        inv += [Rho(rho.variables[:], rho.orders[:], True)]
+
+    return inv
