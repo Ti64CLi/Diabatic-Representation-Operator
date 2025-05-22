@@ -118,8 +118,20 @@ class Monomial:
 
     def __eq__(self, other):
         assert isinstance(other, Monomial)
+        """
+        o1, o2 = [], []
 
-        return np.all(self.variables == other.variables) and np.all(self.orders == other.orders)
+        for i in range(len(self.variables)):
+            o1 += [self.variables[i].order() * self.orders[i]]
+
+        for i in range(len(other.variables)):
+            o2 += [other.variables[i].order() * other.orders[i]]
+
+        o1.sort(); o2.sort()
+
+        return o1 == o2
+        """
+        return self.__repr__() == other.__repr__()
 
     def as_rho(self) -> Rho:
         return Rho(self.variables, self.orders)
@@ -203,6 +215,8 @@ def compute_independent_monomials_E(variables: [Variable], order: int, n: int) -
 
     return monomials
 
+###
+
 def compute_independent_rhos_E(variables: [Variable], n: int) -> [Rho]:
     monomials = compute_independent_monomials_E(variables, n, n)
 
@@ -239,4 +253,30 @@ def appearing_monomials_E(n: int, nvarsym: [int]) -> [([Monomial], [Rho])]:
 
     return amonomials
 
-#def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho])
+def insert_element(l: list, e) -> list:
+    for elem in l:
+        if e == elem:
+            return l
+
+    return l + [e]
+
+def merge_list(l1: list, l2: list) -> list:
+    for e in l2:
+        l1 = insert_element(l1, e)
+
+    return l1
+
+def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho]):
+    if len(amonoms) == 0:
+        return [], []
+
+    # add identity beforehand
+    monomials = [amonoms[0][0][0]]
+    rhos = [amonoms[0][1][0]]
+
+    for amonomials, arhos in amonoms:
+        monomials = merge_list(monomials, amonomials)
+        #rhos = merge_list(rhos, arhos)
+        rhos += arhos[1:] # all rhos should be unique
+
+    return monomials, rhos
