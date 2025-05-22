@@ -58,17 +58,25 @@ class Variable:
 
         return s
 
-    def order(self):
+    def __eq__(self, other):
+        assert isinstance(other, Variable)
+
+        return self.sign == other.sign and self.symmetry == other.symmetry
+
+    def order(self) -> int:
         return self.sign * self.symmetry
 
 class Rho:
     def __init__(self, variables: [Variable], orders: [int]):
         assert len(variables) == len(orders)
 
-        self.variables = variables
-        self.orders = orders
+        self.variables = np.array(variables)
+        self.orders = np.array(orders)
 
     def __repr__(self) -> str:
+        if np.all(np.array(self.orders) == 0):
+            return "1"
+
         s = "ρ"
 
         for i, variable in enumerate(self.variables):
@@ -77,14 +85,22 @@ class Rho:
 
         return s
 
+    def __eq__(self, other):
+        assert isinstance(other, Rho)
+
+        return np.all(self.variables == other.variables) and np.all(self.orders == other.orders)
+
 class Monomial:
     def __init__(self, variables: [Variable], orders: [int]):
         assert len(variables) == len(orders)
 
-        self.variables = variables
-        self.orders = orders
+        self.variables = np.array(variables)
+        self.orders = np.array(orders)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
+        if np.all(np.array(self.orders) == 0):
+            return "1"
+
         s = ""
 
         for i, variable in enumerate(self.variables):
@@ -100,13 +116,18 @@ class Monomial:
 
         return s
 
-    def as_rho(self):
+    def __eq__(self, other):
+        assert isinstance(other, Monomial)
+
+        return np.all(self.variables == other.variables) and np.all(self.orders == other.orders)
+
+    def as_rho(self) -> Rho:
         return Rho(self.variables, self.orders)
 
-    def number_of_variables(self):
+    def number_of_variables(self) -> int:
         return len(self.variables)
 
-    def order(self):
+    def order(self) -> int:
         o = 0
 
         for i, variable in enumerate(self.variables):
@@ -137,19 +158,85 @@ def next_orders(orders: [int], w: [int], p: int) -> [int]:
 
     return orders
 
-def compute_monomials_E(variables: [Variable], order: int, n: int) -> [Monomial]:
+def compute_raw_monomials_E(variables: [Variable], order: int, n: int) -> [int]:
     monomials = []
     F = len(variables)
     monom = [0] * F
     w = weights(variables)
 
     while True:
-        if  np.dot(np.array(m) * signs, w) % p == 0:
-            m_list.append(m[:])
+        relative_order = abs(np.dot(np.array(monom), w))
+        if (relative_order == 0 and order % n == 0) or relative_order == order:
+            monomials.append(monom[:])
 
-        if m[0] >= p:
+        if monom[0] >= order:
             break
 
-        m = next_w(m, p, w, F)
+        monom = next_orders(monom, w, order)
 
-    return m_list
+    return monomials
+
+def compute_independent_raw_monomials_E(variables: [Variable], order: int, n: int) -> [int]:
+    monomials = compute_raw_monomials_E(variables, order, n)
+    imonomials = []
+
+    for i, monomi in enumerate(monomials):
+        indep = True
+
+        for monomj in monomials[1:i]:
+            if all((np.array(monomi) - monomj) >= 0):
+                indep = False
+
+                break
+
+        if indep:
+            imonomials += [monomi]
+
+    return imonomials
+
+def compute_independent_monomials_E(variables: [Variable], order: int, n: int) -> [Monomial]:
+    orders = compute_independent_raw_monomials_E(variables, order, n)
+    monomials = []
+
+    for morder in orders:
+        monomials += [Monomial(variables, morder)]
+
+    return monomials
+
+def compute_independent_rhos_E(variables: [Variable], n: int) -> [Rho]:
+    monomials = compute_independent_monomials_E(variables, n, n)
+
+    return [monom.as_rho() for monom in monomials]
+
+def compute_appearing_monomials_E(variables: [Variable], n: int) -> ([Monomial], [Rho]):
+    monomials = []
+    rhos = compute_independent_rhos_E(variables, n)
+
+    for order in range(n):
+        monomials += compute_independent_monomials_E(variables, order, n)
+
+    return (monomials, rhos)
+
+def get_variables(nvarsym: [int], signs: int) -> [Variable]:
+    variables = []
+    nvar = 0
+
+    for i, nsym in enumerate(nvarsym):
+        for j in range(nsym):
+            variables += [Variable((-1) ** ((signs >> nvar) & 1), i + 1)]
+            nvar += 1
+
+    return variables
+
+def appearing_monomials_E(n: int, nvarsym: [int]) -> [([Monomial], [Rho])]:
+    F = sum(nvarsym)
+    amonomials = []
+
+    for signs in range(2 ** (F - 1)):
+        variables = get_variables(nvarsym, signs)
+        print(variables)
+        amonomials += [compute_appearing_monomials_E(variables, n)]
+
+    return amonomials
+
+#def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho])
