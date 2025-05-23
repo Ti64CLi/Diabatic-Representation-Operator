@@ -71,6 +71,9 @@ class Variable:
 
         return self.sign == other.sign and self.symmetry == other.symmetry
 
+    def __neg__(self):
+        return Variable(-self.sign, self.symmetry)
+
     def order(self) -> int:
         return self.sign * self.symmetry
 
@@ -323,7 +326,7 @@ def merge(amonoms: [([Monomial], [Rho])]) -> ([Monomial], [Rho]):
 
     return monomials, rhos
 
-def invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
+def non_trivial_invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
     monoms, rhos = amonoms
 
     if len(monoms) == 0 and len(rhos) == 0:
@@ -356,3 +359,36 @@ def invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
         inv += [Rho(rho.variables[:], rho.orders[:], True)]
 
     return inv
+
+def trivial_invariants(n: int, nvarsym: [int]) -> [Monomial]:
+    tinvariants = []
+
+    for sym, nsym in enumerate(nvarsym):
+        for i in range(nsym):
+            tinvariants += [Monomial([Variable(1, sym), Variable(-1, sym)], [1, 1])]
+
+    return tinvariants
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
