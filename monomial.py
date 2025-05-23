@@ -6,6 +6,7 @@ Created on Wed May 21 09:51:22 2025
 @author: elidumont
 """
 
+from symmetry import Symmetry
 import numpy as np
 
 #################
@@ -44,9 +45,19 @@ def num2sup(n: int) -> str:
     return s
 
 def sign2sub(n: int) -> str:
+    if n > 0:
+        return sign_sub[2]
+    if n < 0:
+        return sign_sub[0]
+    return sign_sub[1]
     return sign_sub[1 + n]
 
 def sign2sup(n: int) -> str:
+    if n > 0:
+        return sign_sup[2]
+    if n < 0:
+        return sign_sup[0]
+    return sign_sup[1]
     return sign_sup[1 + n]
 
 #######################
@@ -54,129 +65,76 @@ def sign2sup(n: int) -> str:
 #######################
 
 class Variable:
-    def __init__(self, sign, symmetry):
-        self.sign = sign
+    def __init__(self, symmetry: Symmetry, symmetryorder: int) -> None:
+        assert ((symmetry == Symmetry.A1 or symmetry == Symmetry.A2 or symmetry == Symmetry.B1 or symmetry == Symmetry.B2) and symmetryorder == 0) or (symmetry == Symmetry.E and symmetryorder > 0)
+
         self.symmetry = symmetry
+        self.sorder = symmetryorder
 
-    def __repr__(self):
-        s = "Q" + sign2sub(self.sign)
-
-        if self.symmetry > 1:
-            s += num2sub(self.symmetry)
+    def __repr__(self) -> str:
+        s = "Q" + sign2sub(1) + sign2sub(-1)
+        s += num2sub(self.sorder)
 
         return s
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         assert isinstance(other, Variable)
 
-        return self.sign == other.sign and self.symmetry == other.symmetry
-
-    def __neg__(self):
-        return Variable(-self.sign, self.symmetry)
+        return self.symmetry == other.symmetry and self.sorder == other.sorder
 
     def order(self) -> int:
-        return self.sign * self.symmetry
-
-# could condensate Rho and R class ass one with an extra parameter imaginary for example
-# this parameter would determine whether it's a r (i = 0) or rho (i = 1)
-class Rho:
-    def __init__(self, variables: [Variable], orders: [int], inv=False):
-        assert len(variables) == len(orders)
-
-        self.variables = np.array(variables)
-        self.orders = np.array(orders)
-        self.inv = inv
-
-    def __repr__(self) -> str:
-        if np.all(np.array(self.orders) == 0):
-            return "1"
-
-        s = "ρ"
-
-        for i, variable in enumerate(self.variables):
-            s += sign2sub(variable.sign)
-            s += num2sub(self.orders[i])
-
-        if self.inv:
-            s += num2sup(2)
-
-        return s
-
-    def __eq__(self, other):
-        assert isinstance(other, Rho)
-
-        return np.all(self.variables == other.variables) and np.all(self.orders == other.orders)
-
-    def as_r(self):
-        return R(self.variables, self.orders)
-
-class R:
-    def __init__(self, variables: [Variable], orders: [int]):
-        assert len(variables) == len(orders)
-
-        self.variables = variables
-        self.orders = orders
-
-    def __repr__(self):
-        if len(self.variables) == 0:
-            return "1"
-
-        s = "r"
-
-        for i, variable in enumerate(self.variables):
-            s += sign2sub(variable.sign)
-            s += num2sub(self.orders[i])
-
-        return s
-
-    def as_rho(self):
-        return Rho(self.variables, self.orders)
+        return self.sorder
 
 class Monomial:
-    def __init__(self, variables: [Variable], orders: [int]):
-        assert len(variables) == len(orders)
+    """
+    Represent the general form of a monomial Q1Q2...Qn
+
+    Members :
+        - variables : a list of all possible variables for such a monomial
+        - orders : a dict of int * int where the indices are the variables indices and the values are the order. A negative indice indicates a negative variable (Q-)
+    """
+    def __init__(self, variables: [Variable], orders: {int: int}):
+        assert len(orders) <= 2 * len(variables)
 
         self.variables = np.array(variables)
-        self.orders = np.array(orders)
+        self.orders = orders
 
     def __repr__(self) -> str:
-        if np.all(np.array(self.orders) == 0):
+        if len(self.orders) == 0 or all(np.array(list(self.orders.values())) == 0):
             return "1"
 
         s = ""
+        F = len(self.variables)
+        indices = [""] * 2 * F
 
-        for i, variable in enumerate(self.variables):
-            if self.orders[i] != 0:
-                s += "Q" + num2sub(i + 1)
-                s += sign2sub(variable.sign)
+        for i, order in self.orders.items():
+            idx = 2 * abs(i) - 1
 
-                if variable.symmetry > 1:
-                    s += num2sub(variable.symmetry)
+            if i < 0:
+                idx -= 1
 
-                if self.orders[i] > 1:
-                    s += num2sup(self.orders[i])
+            if order > 0:
+                indices[idx] = num2sub(abs(i)) + sign2sub(i)
+
+                if self.variables[abs(i) - 1].order() > 1:
+                    indices[idx] += num2sub(self.variables[abs(i) - 1].order())
+
+                if order > 1:
+                    indices[idx] += num2sup(order)
+
+        for i in indices:
+            if len(i) > 0:
+                s += "Q" + i
 
         return s
 
     def __eq__(self, other):
         assert isinstance(other, Monomial)
-        """
-        o1, o2 = [], []
 
-        for i in range(len(self.variables)):
-            o1 += [self.variables[i].order() * self.orders[i]]
-
-        for i in range(len(other.variables)):
-            o2 += [other.variables[i].order() * other.orders[i]]
-
-        o1.sort(); o2.sort()
-
-        return o1 == o2
-        """
         return str(self) == str(other)
 
-    def as_rho(self) -> Rho:
-        return Rho(self.variables, self.orders)
+    def as_rho(self, order: int):
+        return Rho(self.variables, self.orders, order)
 
     def number_of_variables(self) -> int:
         return len(self.variables)
@@ -184,10 +142,86 @@ class Monomial:
     def order(self) -> int:
         o = 0
 
-        for i, variable in enumerate(self.variables):
-            o += variable.symmetry * variable.sign * self.orders[i]
+        for i, vorder in self.orders:
+            o += self.variables[i].order() * vorder * (i / abs(i))
 
         return o
+
+
+# could condensate Rho and R class as one with an extra parameter imaginary for example
+# this parameter would determine whether it's a r (i = 0) or rho (i = 1)
+class Rho:
+    """
+    Represent the imaginary part of an invariant QiQj...Qk
+
+    Members :
+        - variables : a list of all possible variables Qi
+        - orders : an unordered list of tuple representing the order for each variable. The index can be negative when it represent a negative variable Q- (as opposed to Q+). The order must be positive
+        - order : order of the rho used. Can be squared for invariant monomial of E symmetry, or 1 for invariant monomial of A2/B2 symmetry
+    """
+    def __init__(self, variables: [Variable], orders: [(int, int)], order: int):
+        assert len(variables) == len(orders)
+
+        self.variables = np.array(variables)
+        self.orders = np.array(orders)
+        self.order = order
+
+    def __repr__(self) -> str:
+        if len(self.orders) == 0 or np.all(self.orders == 0):
+            return "1"
+
+        s = "ρ"
+
+        indices = [""] * len(self.variables)
+
+        for i, vorder in self.orders:
+            indices[abs(i) - 1] = sign2sub(i) + num2sub(vorder)
+
+        for i in range(len(indices)):
+            s += indices[i]
+
+        if self.order > 1:
+            s += num2sup(self.order)
+
+        return s
+
+    def __eq__(self, other):
+        assert isinstance(other, Rho)
+
+        return str(self) == str(other)
+
+    def as_r(self):
+        return R(self.variables, self.orders, self.order)
+
+class R:
+    def __init__(self, variables: [Variable], orders: [(int, int)], order: int):
+        assert len(variables) == len(orders)
+
+        self.variables = variables
+        self.orders = orders
+        self.order = order
+
+    def __repr__(self):
+        if len(self.variables) == 0:
+            return "1"
+
+        s = "r"
+
+        indices = [""] * len(self.variables)
+
+        for i, vorder in self.orders:
+            indices[abs(i) - 1] = sign2sub(i) + num2sub(vorder)
+
+        for i in range(len(indices)):
+            s += indices[i]
+
+        if self.order > 1:
+            s += num2sup(self.order)
+
+        return s
+
+    def as_rho(self):
+        return Rho(self.variables, self.orders, self.order)
 
 #################################
 ### General purpose functions ###
@@ -206,15 +240,15 @@ def merge_list(l1: list, l2: list) -> list:
 
     return l1
 
-def weights(variables: [Variable]) -> [int]:
+def weights(m: Monomial) -> [int]:
     w = []
 
-    for variable in variables:
-        w += [variable.sign * variable.symmetry]
+    for i, vorder in m.orders.items():
+        w += [m.variables[abs(i) - 1].order() * vorder * (i / abs(i))]
 
     return w
 
-def next_orders(orders: [int], w: [int], p: int) -> [int]:
+def next_orders(orders: [int], w: [int], pm: int) -> [int]:
     i = -1
     orders[i] += 1
 
@@ -228,32 +262,32 @@ def next_orders(orders: [int], w: [int], p: int) -> [int]:
 
     return orders
 
-def compute_raw_monomials_E(variables: [Variable], order: int, n: int) -> [int]:
+def compute_raw_monomials_E(m: Monomial, order: int, n: int) -> [int]:
     monomials = []
-    F = len(variables)
-    monom = [0] * F
-    w = weights(variables)
+    F = len(m.variables)
+    orders = [0] * F
+    w = weights(m)
 
     while True:
-        relative_order = abs(np.dot(np.array(monom), w))
+        relative_order = abs(np.dot(np.array(orders), w))
         if (relative_order == 0 and order % n == 0) or relative_order == order:
-            monomials.append(monom[:])
+            monomials.append(orders[:])
 
-        if monom[0] >= order:
+        if orders[0] >= order:
             break
 
-        monom = next_orders(monom, w, order)
+        orders = next_orders(orders, w, order)
 
     return monomials
 
-def compute_independent_raw_monomials_E(variables: [Variable], order: int, n: int) -> [int]:
-    monomials = compute_raw_monomials_E(variables, order, n)
+def compute_independent_raw_monomials_E(m: Monomial, order: int, n: int) -> [int]:
+    raw_monomials = compute_raw_monomials_E(m, order, n)
     imonomials = []
 
-    for i, monomi in enumerate(monomials):
+    for i, monomi in enumerate(raw_monomials):
         indep = True
 
-        for monomj in monomials[1:i]:
+        for monomj in raw_monomials[1:i]:
             if all((np.array(monomi) - monomj) >= 0):
                 indep = False
 
@@ -264,12 +298,20 @@ def compute_independent_raw_monomials_E(variables: [Variable], order: int, n: in
 
     return imonomials
 
-def compute_independent_monomials_E(variables: [Variable], order: int, n: int) -> [Monomial]:
-    orders = compute_independent_raw_monomials_E(variables, order, n)
+def compute_independent_monomials_E(m: Monomial, order: int, n: int) -> [Monomial]:
+    orders = compute_independent_raw_monomials_E(m, order, n)
     monomials = []
 
     for morder in orders:
-        monomials += [Monomial(variables, morder)]
+        morders = {}
+
+        for i, v in enumerate(morder):
+            if m.orders.get(-i):
+                morders[-(i + 1)] = v
+            else:
+                morders[i + 1] = v
+
+        monomials += [Monomial(m.variables, morders)]
 
     return monomials
 
