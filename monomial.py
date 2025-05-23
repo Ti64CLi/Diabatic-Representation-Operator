@@ -80,12 +80,12 @@ class Variable:
 # could condensate Rho and R class ass one with an extra parameter imaginary for example
 # this parameter would determine whether it's a r (i = 0) or rho (i = 1)
 class Rho:
-    def __init__(self, variables: [Variable], orders: [int], inv=False):
+    def __init__(self, variables: [Variable], orders: [int], exp=1):
         assert len(variables) == len(orders)
 
         self.variables = np.array(variables)
         self.orders = np.array(orders)
-        self.inv = inv
+        self.exp = exp
 
     def __repr__(self) -> str:
         if np.all(np.array(self.orders) == 0):
@@ -94,11 +94,14 @@ class Rho:
         s = "ρ"
 
         for i, variable in enumerate(self.variables):
-            s += sign2sub(variable.sign)
-            s += num2sub(self.orders[i])
+            if variable.symmetry != 0:
+                s += sign2sub(variable.sign)
+                s += num2sub(self.orders[i])
+            elif self.orders[i] > 0: # A2 symmetry
+                s += "ₐ" + num2sub(i + 1)
 
-        if self.inv:
-            s += num2sup(2)
+        if self.exp > 1:
+            s += num2sup(self.exp)
 
         return s
 
@@ -124,8 +127,11 @@ class R:
         s = "r"
 
         for i, variable in enumerate(self.variables):
-            s += sign2sub(variable.sign)
-            s += num2sub(self.orders[i])
+            if variable.symmetry != 0:
+                s += sign2sub(variable.sign)
+                s += num2sub(self.orders[i])
+            elif self.orders[i] > 0: # A1 symmetry
+                s += "ₐ" + num2sub(i + 1)
 
         return s
 
@@ -356,8 +362,6 @@ def non_trivial_invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
 
     F = len(variables)
 
-    # TODO: add Q+Q- as invariants
-
     # add Q^n as invariants
     for i, variable in enumerate(variables):
         orders = [0] * F
@@ -370,7 +374,7 @@ def non_trivial_invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
         if str(rho) != "1":
             inv += [rho.as_r()]
 
-        inv += [Rho(rho.variables[:], rho.orders[:], True)]
+        inv += [Rho(rho.variables[:], rho.orders[:], 2)]
 
     return inv
 
@@ -385,8 +389,34 @@ def trivial_invariants(n: int, nvarsym: [int]) -> [R2]:
 
     return tinvariants
 
+def invariants(n: int, nvarsym: [int]) -> list:
+    """
+    Computes all invariants for a given C_nv symmetry and a list of number of variables of each symmetry with the following order :
+        [A1, A2, B1, B2, E, ...]
+    It does not yet support B symmetries, but they should regardless be in the nvarsym array to keep track of it
+    """
 
+    nvarEsym = nvarsym[4:]
+    invariants = []
 
+    if len(nvarEsym) > 0:
+        invariants += trivial_invariants(n, nvarEsym)
+        invariants += non_trivial_invariants(n, merge(appearing_monomials_E(n, nvarEsym)))
+
+    # r for A1 symmetry
+    a1vars = [Variable(1, 0)] * nvarsym[0]
+    for i in range(nvarsym[0]):
+        invariants += [R(a1vars, [0] * i + [1] + [0] * (nvarsym[0] - i - 1))]
+
+    # rho² for A2 symmetry
+    a2vars = [Variable(1, 0)] * nvarsym[1]
+
+    for i in range(nvarsym[1]):
+        invariants += [Rho(a2vars, [0] * i + [1] + [0] * (nvarsym[1] - i - 1), 2)]
+
+    # TODO : Add support for B symmetries
+
+    return invariants
 
 
 
