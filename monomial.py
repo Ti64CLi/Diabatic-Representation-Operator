@@ -189,6 +189,20 @@ class Monomial:
 
         return o
 
+class R2(Monomial):
+    def __init__(self, variable: int, symmetry: int):
+        self.idx = variable
+        self.symmetry = symmetry
+
+    def __repr__(self) -> str:
+        snum = num2sub(self.idx)
+        ssym = ""
+
+        if self.symmetry > 1:
+            ssym = num2sub(self.symmetry)
+
+        return "Q" + snum + sign2sub(-1) + ssym + "Q" + snum + sign2sub(1) + ssym
+
 #################################
 ### General purpose functions ###
 #################################
@@ -360,12 +374,14 @@ def non_trivial_invariants(n: int, amonoms: ([Monomial], [Rho])) -> list:
 
     return inv
 
-def trivial_invariants(n: int, nvarsym: [int]) -> [Monomial]:
+def trivial_invariants(n: int, nvarsym: [int]) -> [R2]:
     tinvariants = []
+    nvar = 1
 
     for sym, nsym in enumerate(nvarsym):
         for i in range(nsym):
-            tinvariants += [Monomial([Variable(1, sym), Variable(-1, sym)], [1, 1])]
+            tinvariants += [R2(nvar, sym + 1)]
+            nvar += 1
 
     return tinvariants
 
