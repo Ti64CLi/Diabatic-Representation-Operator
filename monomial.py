@@ -389,12 +389,23 @@ def trivial_invariants(n: int, nvarsym: [int]) -> [R2]:
 
     return tinvariants
 
+def resize_B(n: int, nvarsym: [int]) -> [int]:
+    if n % 2 == 0 and len(nvarsym) - 4 < n // 2:
+        return nvarsym + [0] * (n // 2 - (len(nvarsym) - 4))
+
+    return nvarsym
+
 def invariants(n: int, nvarsym: [int]) -> list:
     """
     Computes all invariants for a given C_nv symmetry and a list of number of variables of each symmetry with the following order :
         [A1, A2, B1, B2, E, ...]
     It does not yet support B symmetries, but they should regardless be in the nvarsym array to keep track of it
     """
+
+    nvarsym = resize_B(n, nvarsym)
+
+    if n % 2 == 0 and (nvarsym[2] != 0 or nvarsym[3] != 0):
+        nvarsym[n // 2] += nvarsym[2] + nvarsym[3]
 
     nvarEsym = nvarsym[4:]
     invariants = []
@@ -414,7 +425,7 @@ def invariants(n: int, nvarsym: [int]) -> list:
     for i in range(nvarsym[1]):
         invariants += [Rho(a2vars, [0] * i + [1] + [0] * (nvarsym[1] - i - 1), 2)]
 
-    # TODO : Add support for B symmetries
+    # TODO : Add support for B symmetries (should just be En/2 when n even and none when n odd)
 
     return invariants
 
