@@ -14,7 +14,7 @@ class Variable:
         return sign * self.symmetry.weight()
     
     def __str__(self) -> str:
-        s = f"{self.name}" + sign2sub(-1 if self.complex_conjugate else 1)
+        s = f"{self.name}{sign2sub(-1 if self.complex_conjugate else 1)}"
 
         return s + (num2sub(self.symmetry.gamma) if self.symmetry.is_E() and self.symmetry.gamma > 1 else "")
     
