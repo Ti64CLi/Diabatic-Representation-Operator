@@ -402,9 +402,8 @@ def invariants(n: int, nvarsym: [int]) -> list:
     It does not yet support B symmetries, but they should regardless be in the nvarsym array to keep track of it
     """
 
-    nvarsym = resize_B(n, nvarsym)
-
-    if n % 2 == 0 and (nvarsym[2] != 0 or nvarsym[3] != 0):
+    if n % 2 == 0 and (nvarsym[2] != 0 or nvarsym[3] != 0): # if there are any variables of B symmetry, just add them to the E_n/2 symmetry for now (we will have to keep track of them later)
+        nvarsym = resize_B(n, nvarsym)
         nvarsym[n // 2] += nvarsym[2] + nvarsym[3]
 
     nvarEsym = nvarsym[4:]
@@ -424,8 +423,6 @@ def invariants(n: int, nvarsym: [int]) -> list:
 
     for i in range(nvarsym[1]):
         invariants += [Rho(a2vars, [0] * i + [1] + [0] * (nvarsym[1] - i - 1), 2)]
-
-    # TODO : Add support for B symmetries (should just be En/2 when n even and none when n odd)
 
     return invariants
 
