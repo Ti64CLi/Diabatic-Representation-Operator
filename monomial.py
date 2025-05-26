@@ -77,7 +77,7 @@ class Variable:
     def order(self) -> int:
         return self.sign * self.symmetry
 
-# could condensate Rho and R class ass one with an extra parameter imaginary for example
+# could condensate Rho and R class as one with an extra parameter imaginary for example
 # this parameter would determine whether it's a r (i = 0) or rho (i = 1)
 class Rho:
     def __init__(self, variables: [Variable], orders: [int], exp=1):
