@@ -22,4 +22,8 @@ class Symmetry:
     
     def __str__(self):
         return f"E_{self.gamma}" if self.is_E() else self.label
+    
+    def __eq__(self, other):
+        assert isinstance(other, Symmetry)
 
+        return self.label == other.label and self.gamma == other.gamma
