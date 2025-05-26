@@ -34,7 +34,15 @@ def num2sup(n: int) -> str:
     return s
 
 def sign2sub(n: int) -> str:
-    return sign_sub[1 + n]
+    if n > 0:
+        return sign_sub[2]
+    if n < 0:
+        return sign_sub[0]
+    return sign_sub[1]
 
 def sign2sup(n: int) -> str:
-    return sign_sup[1 + n]
+    if n > 0:
+        return sign_sup[2]
+    if n < 0:
+        return sign_sup[0]
+    return sign_sup[1]
