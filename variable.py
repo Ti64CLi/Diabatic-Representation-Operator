@@ -19,6 +19,9 @@ class Variable:
         return self.name == other.name and self.symmetry == other.symmetry # is complex_conjugate equal or not ?
 
     def conjugate(self):
+        if not self.symmetry.is_E():
+            return self
+
         return Variable(self.name, self.symmetry, complex_conjugate=not self.complex_conjugate)
 
     def weight(self) -> int:
