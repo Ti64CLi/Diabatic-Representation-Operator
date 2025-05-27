@@ -46,14 +46,14 @@ def try_to_factorize(monome: Monome, factors: list[Monome]) -> bool:
 
     return False
 
-def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int) -> list[ComplexInvariant]:
+def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
     """
     Find the fundamental invariants, those which cannot be factorize anymore
     """
     fundamentals = []
 
     for order in range(1, max_order + 1):
-        monoms = generate_monoms(variables, order, n, remove_factorizable=False)
+        monoms = generate_monoms(variables, order, n, remove_factorizable=False, remove_cc=remove_cc)
 
         for m in monoms:
             if m.weight_mod(n) != 0:
@@ -64,8 +64,8 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
 
     return [Invariant(m) for m in fundamentals]
 
-def generate_rs(variables: list[Variable], n: int) -> list[ComplexInvariant]:
-    return [ComplexInvariant(inv.monome, True) for inv in find_fundamental_invariants(variables, n, n)]
+def generate_rs(variables: list[Variable], n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
+    return [ComplexInvariant(inv.monome, True) for inv in find_fundamental_invariants(variables, n, n, remove_cc=remove_cc)]
 
-def generate_irhos(variables: list[Variable], n: int) -> list[ComplexInvariant]:
-    return [ComplexInvariant(inv.monome, False) for inv in find_fundamental_invariants(variables, n, n) if not inv.monome.is_real()]
+def generate_irhos(variables: list[Variable], n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
+    return [ComplexInvariant(inv.monome, False) for inv in find_fundamental_invariants(variables, n, n, remove_cc=remove_cc) if not inv.monome.is_real()]
