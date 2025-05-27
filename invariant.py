@@ -57,7 +57,7 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
 
     return [ComplexInvariant(m, m.is_real()) for m in fundamentals]
 
-def generate_r(variables: list[Variable], n: int) -> list[ComplexInvariant]:
+def generate_rs(variables: list[Variable], n: int) -> list[ComplexInvariant]:
     return [inv for inv in find_fundamental_invariants(variables, n, n) if inv.is_real()]
 
 def generate_irhos(variables: list[Variable], n: int) -> list[ComplexInvariant]:
