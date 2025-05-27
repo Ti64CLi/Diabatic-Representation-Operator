@@ -16,4 +16,7 @@ class ComplexInvariant:
         return f"r({str(self.monome)})"
 
     def __str__(self) -> str:
-        return f"i{self.imag()}" if not self.is_real() else self.real()
+        if self.is_real():
+            return self.real()
+
+        return self.real() + f"+i{self.imag()}"
