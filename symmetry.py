@@ -14,11 +14,26 @@ class Symmetry:
     label: str                  # can be A1, A2, B1, B2 or E
     gamma: Optional[int] = None # only for E_gamma and B1/B2 (if n even, B1/B2 === E_n/2)
 
-    def is_E(self) -> bool:
-        return self.label == "E" and self.gamma is not None
+    def is_A(self) -> bool:
+        return self.label[0] == "A" and self.gamma is None
+
+    def is_A1(self) -> bool:
+        return self.label == "A1" and self.gamma is None
+
+    def is_A2(self) -> bool:
+        return self.label == "A2" and self.gamma is None
 
     def is_B(self) -> bool:
         return self.label[0] == "B" and self.gamma is not None
+
+    def is_B1(self) -> bool:
+        return self.label == "B1" and self.gamma is not None
+
+    def is_B2(self) -> bool:
+        return self.label == "B2" and self.gamma is not None
+
+    def is_E(self) -> bool:
+        return self.label == "E" and self.gamma is not None
 
     def weight(self) -> int:
         return self.gamma if self.is_E() or self.is_B() else 0
