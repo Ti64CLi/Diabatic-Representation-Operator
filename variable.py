@@ -25,12 +25,12 @@ class Variable:
         return Variable(self.name, self.symmetry, complex_conjugate=not self.complex_conjugate)
 
     def weight(self) -> int:
-        if self.symmetry.is_A2():
-            return 1
-
         sign = -1 if self.complex_conjugate else 1
 
         return sign * self.symmetry.weight()
+
+    def is_real(self) -> bool:
+        return self.symmetry.is_A1() or self.symmetry.is_B1()
 
 def generate_variables_list(nvarsym: list[int], n: int) -> list[Variable]:
     """
