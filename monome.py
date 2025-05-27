@@ -100,40 +100,6 @@ def generate_variables_list(nvarsym: list[int], n: int) -> list[Variable]:
 
     return variables
 
-def try_to_factorize(monome: Monome, factors: list[Monome]) -> bool:
-    target = Counter(monome.variables)
-    degree = target.total()
-
-    for factor in factors:
-        combo = Counter(factor.variables)
-        combo_degree = combo.total()
-
-        if degree < combo_degree:
-            continue
-
-        if combo <= target:
-            return True
-
-    return False
-
-def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int) -> list[Monome]:
-    """
-    Find the fundamental invariants, those which cannot be factorize anymore
-    """
-    fundamentals = []
-
-    for order in range(1, max_order + 1):
-        monoms = generate_monoms(variables, order, n, remove_factorizable=False)
-
-        for m in monoms:
-            if m.weight_mod(n) != 0:
-                continue
-
-            if not try_to_factorize(m, fundamentals):
-                fundamentals.append(m)
-
-    return [Monome(variables=())] + fundamentals
-
 def generate_appearing_monoms(variables: list[Variable], n: int) -> list[Monome]:
     """
     Generate all appearing monomials
@@ -144,8 +110,3 @@ def generate_appearing_monoms(variables: list[Variable], n: int) -> list[Monome]
         monoms.extend(generate_monoms(variables, order, n, True))
 
     return monoms
-
-def generate_rhos(variables: list[Variable], n: int) -> list[Monome]:
-    invariants = find_fundamental_invariants(variables, n, n)
-
-    return [Monome(variables=())] + [inv for inv in invariants if not inv.is_real()]
