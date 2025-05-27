@@ -17,8 +17,11 @@ class Symmetry:
     def is_E(self) -> bool:
         return self.label == "E" and self.gamma is not None
 
+    def is_B(self) -> bool:
+        return self.label[0] == "B" and self.gamma is not None
+
     def weight(self) -> int:
-        return self.gamma if self.is_E() else 0
+        return self.gamma if self.is_E() or self.is_B() else 0
 
     def __str__(self):
         return f"E_{self.gamma}" if self.is_E() else self.label
