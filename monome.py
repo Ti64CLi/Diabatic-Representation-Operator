@@ -35,7 +35,7 @@ class Monome:
         return self.weight() % n
 
     def is_factorisable(self, n: int) -> bool:
-        return len(self.variables) > 0 and (self.weight_mod(n) == 0 or self.weight() > n)
+        return len(self.variables) > 0 and (self.weight_mod(n) == 0 or self.weight() > n or abs(self.weight) < len(self.variables))
 
     def is_real(self):
         if len(self.variables) == 0:
