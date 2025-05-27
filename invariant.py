@@ -6,12 +6,19 @@ from variable import Variable
 from symmetry import Symmetry
 
 @dataclass
+class Invariant:
+    monome: Monome
+
+    def __str__(self) -> str:
+        return str(self.monome)
+
+@dataclass
 class ComplexInvariant:
     monome: Monome
     isreal: bool
 
     def is_real(self) -> bool:
-        return self.is_real
+        return self.isreal
 
     def imag(self) -> str:
         return f"ρ({str(self.monome)})"
@@ -20,7 +27,7 @@ class ComplexInvariant:
         return f"r({str(self.monome)})"
 
     def __str__(self) -> str:
-        return f"i{self.imag()}" if self.is_real() else self.real()
+        return f"i{self.imag()}" if not self.is_real() else self.real()
 
 
 def try_to_factorize(monome: Monome, factors: list[Monome]) -> bool:
@@ -55,12 +62,10 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
             if not try_to_factorize(m, fundamentals):
                 fundamentals.append(m)
 
-    return [ComplexInvariant(m, m.is_real()) for m in fundamentals]
+    return [Invariant(m) for m in fundamentals]
 
 def generate_rs(variables: list[Variable], n: int) -> list[ComplexInvariant]:
-    return [ComplexInvariant(inv.monome, False) for inv in find_fundamental_invariants(variables, n, n)]
+    return [ComplexInvariant(inv.monome, True) for inv in find_fundamental_invariants(variables, n, n)]
 
 def generate_irhos(variables: list[Variable], n: int) -> list[ComplexInvariant]:
-    invariants = find_fundamental_invariants(variables, n, n)
-
-    return [inv for inv in invariants if not inv.is_real()]
+    return [ComplexInvariant(inv.monome, False) for inv in find_fundamental_invariants(variables, n, n) if not inv.monome.is_real()]
