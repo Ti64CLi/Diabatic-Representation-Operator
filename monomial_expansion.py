@@ -62,7 +62,7 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
 
     return list(monoms.elements())
 
-def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[Monome]:
+def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
     """
     Find the fundamental invariants, those which cannot be factorize anymore
     """
@@ -79,20 +79,14 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
             if not try_to_factorize(m, fundamentals):
                 fundamentals.append(m)
 
-    return fundamentals
-
-def generate_rs(variables: list[Variable], n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
-    return [ComplexInvariant(inv, isreal=True) for inv in find_fundamental_invariants(variables, n, n, remove_cc=remove_cc)]
-
-def generate_irhos(variables: list[Variable], n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
-    return [ComplexInvariant(inv, isreal=False) for inv in find_fundamental_invariants(variables, n, n, remove_cc=remove_cc) if not inv.is_real()]
+    return [ComplexInvariant(finv, finv.is_real()) for finv in fundamentals]
 
 def generate_appearing_monoms(variables: list[Variable], n: int, remove_cc: bool = True) -> list[Monome]:
     """
     Generate all appearing monomials
     """
     avariables = filter_appearing_variables(variables)
-    finvs = find_fundamental_invariants(avariables, n, n, remove_cc=remove_cc)
+    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, n, n, remove_cc=remove_cc)))
     monoms = []
     amonoms = []
 

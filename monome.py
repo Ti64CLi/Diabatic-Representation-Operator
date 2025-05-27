@@ -42,12 +42,18 @@ class Monome:
             return True
 
         cv = Counter(self.variables)
+        a2_sym = 0
+        b2_sym = 0
 
         for v in cv:
-            if cv[v] != cv[v.conjugate()]:
+            if v.symmetry.is_E() and cv[v] != cv[v.conjugate()]:
                 return False
+            if v.symmetry.is_A2():
+                a2_sym += 1
+            if v.symmetry.is_B2():
+                b2_sym += 1
 
-        return True
+        return True and (a2_sym % 2 == 0) and (b2_sym % 2 == 0)
 
     def conjugate(self):
         ccvariables = []
