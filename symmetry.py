@@ -38,10 +38,13 @@ class Symmetry:
     def weight(self) -> int:
         return self.gamma if self.is_E() or self.is_B() else 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"E_{self.gamma}" if self.is_E() else self.label
 
     def __eq__(self, other):
         assert isinstance(other, Symmetry)
 
         return self.label == other.label and self.gamma == other.gamma
+
+    def value(self) -> int:
+        values = {"A1": 0, "A2": 1, "B1": 2, "B2": 3, "E": 4}
