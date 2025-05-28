@@ -49,10 +49,14 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
             # add treatement for invariant factors ?
             continue
 
-        if m.weight() < 0:
-            m.complex_conjugate = True
-        else:
+        if monoms[m] != 0:
             m.complex_conjugate = False
+        else:
+            if monoms[m.conjugate()] != 0:
+                m.complex_conjugate = True
+            else:
+                m.complex_conjugate = False
+
 
         if remove_cc and m.complex_conjugate == True:
             m = m.conjugate()
