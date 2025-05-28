@@ -4,6 +4,28 @@ from monome import Monome
 from variable import Variable
 from invariant import ComplexInvariant
 
+@dataclass
+class MonomialExpansion:
+    monomials: list[Monome]
+
+    def __str__(self) -> str:
+        cmonoms = Counter(self.monomials)
+
+        return '+'.join(+cmonoms)
+
+    def __add__(self, other):
+        assert isinstance(other, MonomialExpansion)
+
+        return MonomialExpansion(self.monomials + other.monomials)
+
+    def __sub__(self, other):
+        assert isinstance(other, MonomialExpansion)
+
+        monoms = Counter(self.monomials)
+        omonoms = Counter(other.monomials)
+
+        return MonomialExpansion(list((monoms-omonoms).elements()))
+
 def filter_appearing_variables(variables: list[Variable]) -> list[Variable]:
     """
     Filter variables to keep only appearing ones (excludes A1 variables)
@@ -81,16 +103,16 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
 
     return [ComplexInvariant(finv, finv.is_real()) for finv in fundamentals]
 
-def generate_appearing_monoms(variables: list[Variable], n: int, remove_cc: bool = True) -> list[Monome]:
+def generate_appearing_monoms(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[Monome]:
     """
     Generate all appearing monomials
     """
     avariables = filter_appearing_variables(variables)
-    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, n, n, remove_cc=remove_cc)))
+    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, max_order, n, remove_cc=remove_cc)))
     monoms = []
     amonoms = []
 
-    for order in range(n):
+    for order in range(p):
         monoms.extend(generate_monoms(avariables, order, n, remove_factorizable=True, remove_cc=remove_cc))
 
     for m in monoms:

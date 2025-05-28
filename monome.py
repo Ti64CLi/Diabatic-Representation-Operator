@@ -9,14 +9,24 @@ from utils import *
 class Monome:
     variables: list[Variable]
     complex_conjugate: bool = False
+    real: bool = False
+    imag: bool = False
 
     def __str__(self) -> str:
         cv = Counter(self.variables)
+        s = ""
 
         if len(+cv) == 0: # shouldn't have any negative
-            return "1"
+            s = "1"
+        else:
+            s = ''.join((f"{v}{num2sup(cv[v])}" if cv[v] > 1 else f"{v}") for v in cv)
 
-        return ''.join((f"{v}{num2sup(cv[v])}" if cv[v] > 1 else f"{v}") for v in cv)
+        if self.real:
+            return f"Re({s})"
+        elif self.imag:
+            return f"Im({s})"
+
+        return s
 
     def __eq__(self, other) -> bool:
         assert isinstance(other, Monome)
@@ -26,7 +36,7 @@ class Monome:
         # it's supposed to be equal if variables are equal
 
     def __hash__(self):
-        return hash(str(self.variables) + str(self.complex_conjugate))
+        return hash(str(self.variables) + str(self.complex_conjugate) + str(self.real) + str(self.imag))
 
     def weight(self) -> int:
         return sum(v.weight() for v in self.variables)
@@ -62,3 +72,9 @@ class Monome:
             ccvariables.append(v.conjugate())
 
         return Monome(ccvariables, not self.complex_conjugate)
+
+    def real_part(self):
+        return Monome(self.variables, complex_conjugate=self.complex_conjugate, real=True, imag=False)
+
+    def imag_part(self):
+        return Monome(self.variables, complex_conjugate=self.complex_conjugate, real=False, imag=True)
