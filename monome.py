@@ -36,7 +36,8 @@ class Monome:
         # it's supposed to be equal if variables are equal
 
     def __hash__(self):
-        return hash(str(self.variables) + str(self.complex_conjugate) + str(self.real) + str(self.imag))
+        # doesn't integrate self.complex_conjugate because of its invariant character
+        return hash(str(self.variables) + str(self.real) + str(self.imag))
 
     def weight(self) -> int:
         return sum(v.weight() for v in self.variables)
