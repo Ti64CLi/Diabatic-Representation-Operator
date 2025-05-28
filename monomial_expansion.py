@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from collections import Counter
 from itertools import combinations_with_replacement
 from monome import Monome
@@ -84,11 +85,13 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
 
     return list(monoms.elements())
 
-def find_fundamental_invariants(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[ComplexInvariant]:
+def find_fundamental_invariants(variables: list[Variable], n: int, min_order: int = 0, max_order: int = None, remove_cc: bool = True) -> list[ComplexInvariant]:
     """
     Find the fundamental invariants, those which cannot be factorize anymore
     """
-    # avariables = filter_appearing_variables(variables)
+    if max_order is None:
+        max_order = n
+
     fundamentals = []
 
     for order in range(1, max_order + 1):
@@ -103,16 +106,19 @@ def find_fundamental_invariants(variables: list[Variable], max_order: int, n: in
 
     return [ComplexInvariant(finv, finv.is_real()) for finv in fundamentals]
 
-def generate_appearing_monoms(variables: list[Variable], max_order: int, n: int, remove_cc: bool = True) -> list[Monome]:
+def generate_appearing_monoms(variables: list[Variable], n: int, min_order: int = 0, max_order:int = None, remove_cc: bool = True) -> list[Monome]:
     """
     Generate all appearing monomials
     """
+    if max_order is None:
+        max_order = n
+
     avariables = filter_appearing_variables(variables)
-    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, max_order, n, remove_cc=remove_cc)))
+    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, n, min_order=min_order, max_order=max_order, remove_cc=remove_cc)))
     monoms = []
     amonoms = []
 
-    for order in range(p):
+    for order in range(min_order, max_order + 1):
         monoms.extend(generate_monoms(avariables, order, n, remove_factorizable=True, remove_cc=remove_cc))
 
     for m in monoms:
