@@ -71,7 +71,7 @@ class Monome:
         for v in self.variables:
             ccvariables.append(v.conjugate())
 
-        return Monome(ccvariables, not self.complex_conjugate)
+        return Monome(ccvariables, not self.complex_conjugate, real=self.real, imag=self.imag)
 
     def real_part(self):
         return Monome(self.variables, complex_conjugate=self.complex_conjugate, real=True, imag=False)
