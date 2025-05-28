@@ -108,21 +108,21 @@ class OperatorComponent:
         return OperatorComponent(np.array([[1j, -sigma], [sigma, 1j]]), k)
 
     def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
-        if alpha1 == 0 and s1 != Symmetry.A1 and s1 != Symmetry.A2:
+        if alpha1 == 0 and not s1.is_A():
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if alpha2 == 0 and s2 != Symmetry.A1 and s2 != Symmetry.A2:
+        if alpha2 == 0 and not s2.is_A():
             raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
-        if (s1 == Symmetry.B1 or s1 == Symmetry.B2 or s2 == Symmetry.B1 or s2 == Symmetry.B2) and (n // 2 != n / 2):
+        if (s1.is_B() or s2.is_B()) and (n // 2 != n / 2):
             raise ValueError("n should be even for a state of B symmetry")
-        if (s1 == Symmetry.B1 or s1 == Symmetry.B2) and alpha1 != (n // 2):
+        if (s1.is_B()) and alpha1 != (n // 2):
             raise ValueError("alpha1 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s2 == Symmetry.B1 or s2 == Symmetry.B2) and alpha2 != (n // 2):
+        if (s2.is_B()) and alpha2 != (n // 2):
             raise ValueError("alpha2 should be n/2 for a state of B (B1/B2) symmetry")
 
-        if s1 != Symmetry.E:
-            self.matrix[(s1 + 1) % 2, :] = 0
-        if s2 != Symmetry.E:
-            self.matrix[:, (s2 + 1) % 2] = 0
+        if not s1.is_E():
+            self.matrix[(s1.value() + 1) % 2, :] = 0
+        if not s2.is_E():
+            self.matrix[:, (s2.value() + 1) % 2] = 0
 
 class State:
     def __init__(self, symmetry, alpha):
@@ -220,27 +220,27 @@ class Operator:
         return res
 
     def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
-        if alpha1 == 0 and s1 != Symmetry.A1 and s1 != Symmetry.A2:
+        if alpha1 == 0 and not s1.is_A():
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if alpha2 == 0 and s2 != Symmetry.A1 and s2 != Symmetry.A2:
+        if alpha2 == 0 and not s2.is_A():
             raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
-        if (s1 == Symmetry.B1 or s1 == Symmetry.B2 or s2 == Symmetry.B1 or s2 == Symmetry.B2) and n % 2 != 0:
+        if (s1.is_B() or s2.is_B()) and n % 2 != 0:
             raise ValueError("n should be even for a state of B symmetry")
-        if (s1 == Symmetry.B1 or s1 == Symmetry.B2) and alpha1 != (n // 2):
+        if (s1.is_B()) and alpha1 != (n // 2):
             raise ValueError("alpha1 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s2 == Symmetry.B1 or s2 == Symmetry.B2) and alpha2 != (n // 2):
+        if (s2.is_B()) and alpha2 != (n // 2):
             raise ValueError("alpha2 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s1 == Symmetry.A1 or s1 == Symmetry.A2) and alpha1 != 0:
+        if (s1.is_A()) and alpha1 != 0:
             raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if (s2 == Symmetry.A1 or s2 == Symmetry.A2) and alpha2 != 0:
+        if (s2.is_A()) and alpha2 != 0:
             raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
 
         mask = np.ones((2, 2))
 
-        if s1 != Symmetry.E:
-            mask[(s1 + 1) % 2, :] = 0
-        if s2 != Symmetry.E:
-            mask[:, (s2 + 1) % 2] = 0
+        if not s1.is_E():
+            mask[(s1.value() + 1) % 2, :] = 0
+        if not s2.is_E():
+            mask[:, (s2.value() + 1) % 2] = 0
 
         for component, _ in self.components.values():
             component.matrix *= mask
@@ -352,20 +352,20 @@ def operator(name, opsymmetry, gamma, n, s1, alpha1, s2, alpha2, p=2):
         - p[=2] : max order of the expansion
     """
 
-    if (opsymmetry == Symmetry.B1 or opsymmetry == Symmetry.B2) and n % 2 != 0:
+    if (opsymmetry.is_B()) and n % 2 != 0:
         raise Exception("n must be even if the operator is of B symmetry")
 
     op = []
 
-    if opsymmetry == Symmetry.A1:
+    if opsymmetry.is_A1():
         op = [A_x(n, 0, alpha1, alpha2, p), Operator("A_y")]
-    elif opsymmetry == Symmetry.A2:
+    elif opsymmetry.is_A2():
         op = [Operator("A_x"), A_y(n, 0, alpha1, alpha2, p)]
-    elif opsymmetry == Symmetry.B1:
+    elif opsymmetry.is_B1():
         op = [A_x(n, n // 2, alpha1, alpha2, p), Operator("A_y")]
-    elif opsymmetry == Symmetry.B2:
+    elif opsymmetry.is_B2():
         op = [Operator("A_x"), A_y(n, n // 2, alpha1, alpha2, p)]
-    else:
+    else: # E symmetry
         op = [A_x(n, gamma, alpha1, alpha2, p), A_y(n, gamma, alpha1, alpha2, p)]
 
     op[0].apply_symmetry(n, s1, alpha1, s2, alpha2)

@@ -6,8 +6,8 @@ Created on Mon May 19 14:09:13 2025
 @author: elidumont
 """
 
-import monomials as mn
 import operators as op
+from symmetry import Symmetry
 
 def hamiltonian(n, alpha, p, name = "H"):
     """
@@ -45,7 +45,7 @@ def hamiltonian(n, alpha, p, name = "H"):
     return H
 
 
-H11 = op.operator("H(1,1)", op.Symmetry.A1, 0, 6, op.Symmetry.E, 1, op.Symmetry.E, 1, p=4)
+H11 = op.operator("H(1,1)", op.Symmetry("A1"), 0, 6, op.Symmetry("E", gamma=1), 1, op.Symmetry("E", gamma=1), 1, p=4)
 print(H11)
 for p in range(5):
     print("\nAt order p =", p, ":")
