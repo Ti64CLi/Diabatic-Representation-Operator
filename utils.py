@@ -46,3 +46,12 @@ def sign2sup(n: int) -> str:
     if n < 0:
         return sign_sup[0]
     return sign_sup[1]
+
+def sign(n: int) -> str:
+    if n > 0:
+        return "+"
+
+    if n < 0:
+        return "-"
+
+    return "0"
