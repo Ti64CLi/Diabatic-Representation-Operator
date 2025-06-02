@@ -188,6 +188,9 @@ class Operator:
         beta = monome.weight()
 
         for component, csign in self.components.values():
+            if component.k % beta != 0:
+                continue
+
             redc = component.reduce(beta)
 
             if csign > 0:
