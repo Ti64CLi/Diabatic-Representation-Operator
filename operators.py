@@ -8,14 +8,10 @@ Created on Mon May 19 10:50:49 2025
 
 import numpy as np
 from symmetry import Symmetry
-
-def sign(n):
-    if n > 0:
-        return "+"
-    elif n < 0:
-        return "-"
-
-    return "0"
+from variable import generate_variables_list
+from monome import Monome
+from monomial_expansion import generate_appearing_monoms, find_fundamental_invariants
+from utils import *
 
 class ComponentType:
     X = "X"
@@ -28,7 +24,7 @@ class OperatorComponent:
     Representation of operators components (mainly X^k_sigma and Y^k_sigma) as matrices (2x2 by blocks and function of Q variables)
     """
 
-    def __init__(self, m, k):
+    def __init__(self, m: np.ndarray, k: int):
         #assert isinstance(ctype, str)
         assert m.shape == (2, 2)
         assert isinstance(k, int)
@@ -38,7 +34,7 @@ class OperatorComponent:
         self.matrix = m[:, :]
         self.k = k
 
-    def __repr__(self):
+    def __str__(self) -> str:
         #s = self.ctype + "^" + str(self.k) + " = \n"
         s = ""
 
@@ -72,65 +68,57 @@ class OperatorComponent:
 
         return OperatorComponent(self.matrix - other.matrix, self.k)
 
-    def reduce(self, beta):
+    def null(k: int):
+        return OperatorComponent(np.zeros((2, 2)), k)
+
+    def reduce(self, beta: int):
         assert isinstance(beta, int)
         assert beta > 0
-        assert self.k // beta == self.k / beta
+
+        if self.k % beta != 0:
+            return OperatorComponent.null(self.k)
 
         return OperatorComponent(self.matrix, self.k // beta)
 
-    def X(sigma, k):
+    def X(sigma: int, k: int):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
 
         return OperatorComponent(np.array([[1, sigma * 1j], [sigma * 1j, (-1)**sigma]]), k)
 
-    def Y(sigma, k):
+    def Y(sigma: int, k: int):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
 
         return OperatorComponent(np.array([[1j, -sigma], [-sigma, (-1)**sigma]]), k)
 
-    def X_tilde(sigma, k):
+    def X_tilde(sigma: int, k: int):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
 
         return OperatorComponent(np.array([[1, sigma * 1j], [-sigma * 1j, 1]]), k)
 
-    def Y_tilde(sigma, k):
+    def Y_tilde(sigma: int, k: int):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
 
         return OperatorComponent(np.array([[1j, -sigma], [sigma, 1j]]), k)
 
-    def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
-        if alpha1 == 0 and not s1.is_A():
-            raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if alpha2 == 0 and not s2.is_A():
-            raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
+    def apply_symmetry(self, n: int, s1: Symmetry, s2: Symmetry):
         if (s1.is_B() or s2.is_B()) and (n // 2 != n / 2):
             raise ValueError("n should be even for a state of B symmetry")
-        if (s1.is_B()) and alpha1 != (n // 2):
-            raise ValueError("alpha1 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s2.is_B()) and alpha2 != (n // 2):
-            raise ValueError("alpha2 should be n/2 for a state of B (B1/B2) symmetry")
 
         if not s1.is_E():
             self.matrix[(s1.value() + 1) % 2, :] = 0
         if not s2.is_E():
             self.matrix[:, (s2.value() + 1) % 2] = 0
 
-class State:
-    def __init__(self, symmetry, alpha):
-        self.symmetry = symmetry
-        self.alpha = alpha
-
 class Operator:
-    def __init__(self, name, oc=[]):
+    def __init__(self, name: str, oc: list[OperatorComponent]=[]):
         assert isinstance(name, str)
 
         self.name = name
@@ -139,13 +127,12 @@ class Operator:
         for component, csign in oc:
             self.__addcomponent(component, csign)
 
-    def __addcomponent(self, component, csign):
+    def __addcomponent(self, component: OperatorComponent, csign: int) -> bool:
         kcomponent = self.components.get(component.k)
 
-        if kcomponent:
+        if kcomponent is not None:
             kcomponent, kcsign = kcomponent
 
-            #if np.any(component.matrix != kcomponent.matrix):
             if kcsign == csign:
                 kcomponent += component
             else:
@@ -156,25 +143,26 @@ class Operator:
             return False
 
         self.components[component.k] = (component, csign)
+
         return True
 
     def __add__(self, other):
-        res = Operator(self.name, self.components.values())
+        assert isinstance(other, OperatorComponent)
 
-        if isinstance(other, OperatorComponent):
-            res.__addcomponent(other, 1)
+        res = Operator(self.name, self.components.values())
+        res.__addcomponent(other, 1)
 
         return res
 
     def __sub__(self, other):
-        res = Operator(self.name, self.components.values())
+        assert isinstance(other, OperatorComponent)
 
-        if isinstance(other, OperatorComponent):
-            res.__addcomponent(other, -1)
+        res = Operator(self.name, self.components.values())
+        res.__addcomponent(other, -1)
 
         return res
 
-    def __repr__(self):
+    def __str__(self) -> str:
         s = self.name + " =\n"
 
         if len(self.components) == 0:
@@ -185,15 +173,19 @@ class Operator:
         for component, csign in self.components.values():
             if i != 0:
                 s += sign(csign)
-            #s += " inv*"
+
             s += str(component)
 
             i += 1
 
         return s
 
-    def reduce(self, beta):
+    def reduce(self, monome: Monome):
+        if monome.weight() == 0:
+            return self
+
         res = Operator(self.name, [])
+        beta = monome.weight()
 
         for component, csign in self.components.values():
             redc = component.reduce(beta)
@@ -205,6 +197,7 @@ class Operator:
 
         return res
 
+    # should be redundant
     def explicit(self):
         res = Operator(self.name, [])
 
@@ -219,21 +212,9 @@ class Operator:
 
         return res
 
-    def apply_symmetry(self, n, s1, alpha1, s2, alpha2):
-        if alpha1 == 0 and not s1.is_A():
-            raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if alpha2 == 0 and not s2.is_A():
-            raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
+    def apply_states_symmetries(self, n: int, s1: Symmetry, s2: Symmetry):
         if (s1.is_B() or s2.is_B()) and n % 2 != 0:
             raise ValueError("n should be even for a state of B symmetry")
-        if (s1.is_B()) and alpha1 != (n // 2):
-            raise ValueError("alpha1 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s2.is_B()) and alpha2 != (n // 2):
-            raise ValueError("alpha2 should be n/2 for a state of B (B1/B2) symmetry")
-        if (s1.is_A()) and alpha1 != 0:
-            raise ValueError("alpha1 should be 0 for a state of A (A1/A2) symmetry")
-        if (s2.is_A()) and alpha2 != 0:
-            raise ValueError("alpha2 should be 0 for a state of A (A1/A2) symmetry")
 
         mask = np.ones((2, 2))
 
@@ -245,7 +226,7 @@ class Operator:
         for component, _ in self.components.values():
             component.matrix *= mask
 
-    def extract_order(self, p):
+    def extract_order(self, p: int):
         assert p >= 0
 
         res = Operator(self.name, [])
@@ -256,12 +237,19 @@ class Operator:
 
         return res
 
-def A_x(n, gamma, alpha1, alpha2, p):
-    assert gamma >= 0
-    assert alpha1 >= 0
-    assert alpha2 >= 0
+def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[Operator]:
+    assert opsymmetry.compute_gamma(n) >= 0
+    assert s1.compute_gamma(n) >= 0
+    assert s2.compute_gamma(n) >= 0
 
     Ax = Operator("A_x", [])
+
+    if opsymmetry.is_A2() or opsymmetry.is_B2():
+        return Ax
+
+    gamma = opsymmetry.compute_gamma(n)
+    alpha1 = s1.compute_gamma(n)
+    alpha2 = s2.compute_gamma(n)
 
     j = 0
 
@@ -291,12 +279,19 @@ def A_x(n, gamma, alpha1, alpha2, p):
 
     return Ax
 
-def A_y(n, gamma, alpha1, alpha2, p):
-    assert gamma >= 0
-    assert alpha1 >= 0
-    assert alpha2 >= 0
+def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[Operator]:
+    assert opsymmetry.compute_gamma(n) >= 0
+    assert s1.compute_gamma(n) >= 0
+    assert s2.compute_gamma(n) >= 0
 
     Ay = Operator("A_y", [])
+
+    if opsymmetry.is_A1() or opsymmetry.is_B1():
+        return Ay
+
+    gamma = opsymmetry.compute_gamma(n)
+    alpha1 = s1.compute_gamma(n)
+    alpha2 = s2.compute_gamma(n)
 
     j = 0
 
@@ -336,44 +331,52 @@ def A_y(n, gamma, alpha1, alpha2, p):
 
     return Ay
 
-def operator(name, opsymmetry, gamma, n, s1, alpha1, s2, alpha2, p=2):
+def operator_form(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p=2) -> list[Operator]:
     """
     Computes the expansion (to order p) of an operator given its symmetry and the symmetry of each state
 
     Args :
         - name : name of the operator (for a display purpose)
-        - opsymmetry : operator symmetry (A1/2, B1/2, E)
-        - gamma : if the operator is of E symmetry, it's the order of the symmetry (E_gamma), otherwise it has no impact whatsoever
         - n : type of point group (C_nv)
+        - opsymmetry : operator symmetry (A1/2, B1/2, E)
         - s1 : symmetry of the first state
-        - alpha1 : the order of the symmetry if the first state is of E symmetry, otherwise is constrained by A1/2 or B1/2 symmetry
         - s2 : symmetry of the second state
-        - alpha2 : the order of the symmetry if the second state is of E symmetry, otherwise is constrained by A1/2 or B1/2 symmetry
         - p[=2] : max order of the expansion
     """
 
     if (opsymmetry.is_B()) and n % 2 != 0:
         raise Exception("n must be even if the operator is of B symmetry")
 
-    op = []
-
-    if opsymmetry.is_A1():
-        op = [A_x(n, 0, alpha1, alpha2, p), Operator("A_y")]
-    elif opsymmetry.is_A2():
-        op = [Operator("A_x"), A_y(n, 0, alpha1, alpha2, p)]
-    elif opsymmetry.is_B1():
-        op = [A_x(n, n // 2, alpha1, alpha2, p), Operator("A_y")]
-    elif opsymmetry.is_B2():
-        op = [Operator("A_x"), A_y(n, n // 2, alpha1, alpha2, p)]
-    else: # E symmetry
-        op = [A_x(n, gamma, alpha1, alpha2, p), A_y(n, gamma, alpha1, alpha2, p)]
-
-    op[0].apply_symmetry(n, s1, alpha1, s2, alpha2)
-    op[1].apply_symmetry(n, s1, alpha1, s2, alpha2)
+    op = [A_x(n, opsymmetry, s1, s2, p), A_y(n, opsymmetry, s1, s2, p)]
+    op[0].apply_states_symmetries(n, s1, s2)
+    op[1].apply_states_symmetries(n, s1, s2)
 
     return op
 
-#def operator(name, opsymmetry, n, )
+def operator(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: list[int], p=2) -> np.ndarray[list[(Monome, list[Operator])]]:
+    variables = generate_variables_list(nvarsym, n)
+    monomes = generate_appearing_monoms(variables, n, min_order=1)
+    finvs = find_fundamental_invariants(variables, n)
+
+    opform = np.array([
+        # 11, 12
+        [operator_form(name, n, opsymmetry, s1, s1, p), operator_form(name, n, opsymmetry, s1, s2, p)],
+        # 21, 22
+        [operator_form(name, n, opsymmetry, s2, s1, p), operator_form(name, n, opsymmetry, s2, s2, p)]
+    ])
+
+    op = np.empty((2, 2), dtype=object)
+
+    for i in range(2):
+        for j in range(2):
+            op[i, j] = []
+
+    for monome in monomes:
+        for i in range(2):
+            for j in range(2):
+                op[i, j].append((monome, [opform[i, j][0].reduce(monome), opform[i, j][1].reduce(monome)]))
+
+    return op
 
 """
 H = Operator("H(1, 1)", [])
