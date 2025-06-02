@@ -55,7 +55,10 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
             if monoms[m.conjugate()] != 0:
                 m.complex_conjugate = True
             else:
-                m.complex_conjugate = False
+                if m.weight() < 0:
+                    m.complex_conjugate = True
+                else:
+                    m.complex_conjugate = False
 
 
         if remove_cc and m.complex_conjugate == True:
@@ -98,7 +101,8 @@ def generate_appearing_monoms(variables: list[Variable], n: int, remove_cc: bool
         monoms.extend(generate_monoms(avariables, order, n, remove_factorizable=True, remove_cc=remove_cc))
 
     for m in monoms:
-        if not try_to_factorize(m, finvs):
+        # need to check for max order since a variable doesn't necessarily have a weight of +/- 1
+        if not try_to_factorize(m, finvs) and not try_to_factorize(m.conjugate(), finvs) and m.weight() >= 0 and m.weight() <= max_order:
             amonoms.append(m)
 
     return amonoms
