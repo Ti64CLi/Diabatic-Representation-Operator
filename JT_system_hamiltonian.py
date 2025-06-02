@@ -44,24 +44,29 @@ def hamiltonian(n, alpha, p, name = "H"):
 
     return H
 
-
-H11 = op.operator("H(1,1)", op.Symmetry("A1"), 0, 6, op.Symmetry("E", gamma=1), 1, op.Symmetry("E", gamma=1), 1, p=4)
+"""
+H11 = op.operator_form("H(1,1)", 6, Symmetry("A1"), Symmetry("E", gamma=1), Symmetry("E", gamma=1), p=4)
 print(H11)
 for p in range(5):
     print("\nAt order p =", p, ":")
     print(H11[0].extract_order(p))
 
-"""
-H22 = op.operator("H(2,2)", op.Symmetry.A1, 0, 6, op.Symmetry.E, 2, op.Symmetry.E, 2, p=4)
+
+H22 = op.operator_form("H(2,2)", 6, Symmetry("A1"), Symmetry("E", gamma=2), Symmetry("E", gamma=2), p=4)
 print(H22)
 print(H22[0].reduce(2))
 for p in range(5):
     print("\nAt order p =", p, ":")
     print(H22[0].extract_order(p))
-
-H12 = op.operator("H(1,2)", op.Symmetry.A1, 0, 6, op.Symmetry.E, 1, op.Symmetry.E, 2, p=4)
+"""
+H12 = op.operator_form("H(1,2)", 6, Symmetry("A1"), Symmetry("E", gamma=1), Symmetry("E", gamma=2), p=4)
 print(H12)
 for p in range(5):
     print("\nAt order p =", p, ":")
     print(H12[0].extract_order(p))
-"""
+
+H21 = op.operator_form("H(2, 1)", 6, Symmetry("A1"), Symmetry("E", gamma=2), Symmetry("E", gamma=1), p=4)
+print(H21)
+for p in range(5):
+    print("\nAt order p =", p, ":")
+    print(H21[0].extract_order(p))
