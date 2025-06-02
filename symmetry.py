@@ -48,3 +48,15 @@ class Symmetry:
 
     def value(self) -> int:
         values = {"A1": 0, "A2": 1, "B1": 2, "B2": 3, "E": 4}
+
+        return values[self.label]
+
+    def compute_gamma(self, n):
+        if self.is_A():
+            return 0
+        elif self.is_B():
+            assert n % 2 == 0
+
+            return n // 2
+        else:
+            return self.gamma
