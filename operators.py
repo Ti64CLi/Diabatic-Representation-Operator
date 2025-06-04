@@ -8,7 +8,7 @@ Created on Mon May 19 10:50:49 2025
 
 import numpy as np
 from symmetry import Symmetry
-from variable import generate_variables_list
+from variable import generate_variables_list, Variable
 from monome import Monome
 from monomial_expansion import generate_appearing_monoms, find_fundamental_invariants
 from utils import *
@@ -24,7 +24,7 @@ class OperatorComponent:
     Representation of operators components (mainly X^k_sigma and Y^k_sigma) as matrices (2x2 by blocks and function of Q variables)
     """
 
-    def __init__(self, m: np.ndarray, k: int):
+    def __init__(self, m: np.ndarray, k: int, monome: Monome):
         #assert isinstance(ctype, str)
         assert m.shape == (2, 2)
         assert isinstance(k, int)
@@ -33,6 +33,7 @@ class OperatorComponent:
         #self.ctype = ctype
         self.matrix = m[:, :]
         self.k = k
+        self.monome = monome
 
     def __str__(self) -> str:
         #s = self.ctype + "^" + str(self.k) + " = \n"
@@ -46,10 +47,10 @@ class OperatorComponent:
                     s += "     0     "
                 elif self.matrix[i, j].imag == 0:
                     s += sign(self.matrix[i, j].real)
-                    s += "Re(Q+^" + str(self.k) + ") "
+                    s += f"Re(({str(self.monome)})" + num2sup(self.k) + ") "
                 else:
                     s += sign(self.matrix[i, j].imag)
-                    s += "Im(Q+^" + str(self.k) + ") "
+                    s += f"Im(({str(self.monome)})" + num2sup(self.k) + ") "
             s += ")\n"
 
         #s += "k = " + str(self.k) + " and sigma = " + str(self.sigma) + "\n"
@@ -59,54 +60,53 @@ class OperatorComponent:
     def __add__(self, other):
         assert isinstance(other, OperatorComponent)
         assert self.k == other.k
+        assert self.monome == other.monome
 
-        return OperatorComponent(self.matrix + other.matrix, self.k)
+        return OperatorComponent(self.matrix + other.matrix, self.k, self.monome)
 
     def __sub__(self, other):
         assert isinstance(other, OperatorComponent)
         assert self.k == other.k
+        assert self.monome == other.monome
 
-        return OperatorComponent(self.matrix - other.matrix, self.k)
+        return OperatorComponent(self.matrix - other.matrix, self.k, self.monome)
 
-    def null(k: int):
-        return OperatorComponent(np.zeros((2, 2)), k)
+    def null(k: int, monome: Monome):
+        return OperatorComponent(np.zeros((2, 2)), k, monome)
 
-    def reduce(self, beta: int):
-        assert isinstance(beta, int)
-        assert beta > 0
+    def reduce(self, monome: Monome):
+        if ((self.k * self.monome.weight()) % monome.weight() != 0) or ((self.k * self.monome.weight()) < monome.weight()):
+            return OperatorComponent.null(self.k, monome)
 
-        if self.k % beta != 0:
-            return OperatorComponent.null(self.k)
+        return OperatorComponent(self.matrix, (self.k * self.monome.weight()) // monome.weight(), monome)
 
-        return OperatorComponent(self.matrix, self.k // beta)
-
-    def X(sigma: int, k: int):
+    def X(sigma: int, k: int, monome: Monome):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
 
-        return OperatorComponent(np.array([[1, sigma * 1j], [sigma * 1j, (-1)**sigma]]), k)
+        return OperatorComponent(np.array([[1, sigma * 1j], [sigma * 1j, (-1)**sigma]]), k, monome)
 
-    def Y(sigma: int, k: int):
+    def Y(sigma: int, k: int, monome: Monome):
         assert sigma == 0 or sigma == 1 or sigma == -1
         assert isinstance(k, int)
         assert k >= 0
 
-        return OperatorComponent(np.array([[1j, -sigma], [-sigma, (-1)**sigma]]), k)
+        return OperatorComponent(np.array([[1j, -sigma], [-sigma, (-1)**sigma]]), k, monome)
 
-    def X_tilde(sigma: int, k: int):
+    def X_tilde(sigma: int, k: int, monome: Monome):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
 
-        return OperatorComponent(np.array([[1, sigma * 1j], [-sigma * 1j, 1]]), k)
+        return OperatorComponent(np.array([[1, sigma * 1j], [-sigma * 1j, 1]]), k, monome)
 
-    def Y_tilde(sigma: int, k: int):
+    def Y_tilde(sigma: int, k: int, monome: Monome):
         assert sigma != 0 and (sigma == 1 or sigma == -1)
         assert isinstance(k, int)
         assert k >= 0
 
-        return OperatorComponent(np.array([[1j, -sigma], [sigma, 1j]]), k)
+        return OperatorComponent(np.array([[1j, -sigma], [sigma, 1j]]), k, monome)
 
     def apply_symmetry(self, n: int, s1: Symmetry, s2: Symmetry):
         if (s1.is_B() or s2.is_B()) and (n // 2 != n / 2):
@@ -117,11 +117,12 @@ class OperatorComponent:
         if not s2.is_E():
             self.matrix[:, (s2.value() + 1) % 2] = 0
 
-class Operator:
-    def __init__(self, name: str, oc: list[OperatorComponent]=[]):
+class OperatorForm:
+    def __init__(self, name: str, monome: Monome, oc: list[OperatorComponent]=[]):
         assert isinstance(name, str)
 
         self.name = name
+        self.monome = monome
         self.components = {}
 
         for component, csign in oc:
@@ -148,16 +149,18 @@ class Operator:
 
     def __add__(self, other):
         assert isinstance(other, OperatorComponent)
+        assert self.monome == other.monome
 
-        res = Operator(self.name, self.components.values())
+        res = OperatorForm(self.name, self.components.values(), self.monome)
         res.__addcomponent(other, 1)
 
         return res
 
     def __sub__(self, other):
         assert isinstance(other, OperatorComponent)
+        assert self.monome == other.monome
 
-        res = Operator(self.name, self.components.values())
+        res = OperatorForm(self.name, self.components.values(), self.monome)
         res.__addcomponent(other, -1)
 
         return res
@@ -184,14 +187,14 @@ class Operator:
         if monome.weight() == 0:
             return self
 
-        res = Operator(self.name, [])
-        beta = monome.weight()
+        res = OperatorForm(self.name, [], monome)
 
         for component, csign in self.components.values():
-            if component.k % beta != 0:
+            cweight = component.k * component.monome.weight()
+            if cweight % monome.weight() != 0 or cweight < monome.weight():
                 continue
 
-            redc = component.reduce(beta)
+            redc = component.reduce(monome)
 
             if csign > 0:
                 res += redc
@@ -202,7 +205,7 @@ class Operator:
 
     # should be redundant
     def explicit(self):
-        res = Operator(self.name, [])
+        res = OperatorForm(self.name, [], self.monome)
 
         for component, csign in self.components.values():
             if res.components.get(component.k):
@@ -232,7 +235,7 @@ class Operator:
     def extract_order(self, p: int):
         assert p >= 0
 
-        res = Operator(self.name, [])
+        res = OperatorForm(self.name, [])
 
         for component, csign in self.components.values():
             if component.k == p:
@@ -240,12 +243,18 @@ class Operator:
 
         return res
 
-def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[Operator]:
+@dataclass
+class Operator:
+    expansion: dict
+
+def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[OperatorForm]:
     assert opsymmetry.compute_gamma(n) >= 0
     assert s1.compute_gamma(n) >= 0
     assert s2.compute_gamma(n) >= 0
 
-    Ax = Operator("A_x", [])
+    variables = [Variable("Q", Symmetry("E", gamma=1))]
+    monome = Monome(variables)
+    Ax = OperatorForm("A_x", [], monome)
 
     if opsymmetry.is_A2() or opsymmetry.is_B2():
         return Ax
@@ -270,10 +279,10 @@ def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
                     elif k >= 0:
                         if sigma1 * sigma2 > 0:
                             #print("Adding X^"+str(k)+"_"+str(-sigma2))
-                            Ax += OperatorComponent.X(-sigma2, k)
+                            Ax += OperatorComponent.X(-sigma2, k, monome)
                         else:
                             #print("Adding X~^"+str(k)+"_"+str(-sigma2))
-                            Ax += OperatorComponent.X_tilde(-sigma2, k)
+                            Ax += OperatorComponent.X_tilde(-sigma2, k, monome)
 
         if s == 8:
             break
@@ -282,12 +291,14 @@ def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
 
     return Ax
 
-def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[Operator]:
+def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> list[OperatorForm]:
     assert opsymmetry.compute_gamma(n) >= 0
     assert s1.compute_gamma(n) >= 0
     assert s2.compute_gamma(n) >= 0
 
-    Ay = Operator("A_y", [])
+    variables = [Variable("Q", Symmetry("E", gamma=1))]
+    monome = Monome(variables)
+    Ay = OperatorForm("A_y", [], monome)
 
     if opsymmetry.is_A1() or opsymmetry.is_B1():
         return Ay
@@ -310,9 +321,9 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
                     continue
                 elif k >= 0:
                     if sigma1 * sigma2 > 0:
-                        Ay += OperatorComponent.X(-sigma2, k)
+                        Ay += OperatorComponent.X(-sigma2, k, monome)
                     else:
-                        Ay += OperatorComponent.X_tilde(-sigma2, k)
+                        Ay += OperatorComponent.X_tilde(-sigma2, k, monome)
 
         for sigma1 in [-1, 1]:
             for sigma2 in [-1, 1]:
@@ -323,9 +334,9 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
                     continue
                 elif k >= 0:
                     if sigma1 * sigma2 > 0:
-                        Ay -= OperatorComponent.X(-sigma2, k)
+                        Ay -= OperatorComponent.X(-sigma2, k, monome)
                     else:
-                        Ay -= OperatorComponent.X_tilde(-sigma2, k)
+                        Ay -= OperatorComponent.X_tilde(-sigma2, k, monome)
 
         if s == 8:
             break
@@ -334,7 +345,7 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
 
     return Ay
 
-def operator_form(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p=2) -> list[Operator]:
+def operator_form(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p=2) -> list[OperatorForm]:
     """
     Computes the expansion (to order p) of an operator given its symmetry and the symmetry of each state
 
@@ -356,7 +367,7 @@ def operator_form(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Sym
 
     return op
 
-def operator(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: list[int], p=2) -> np.ndarray[list[(Monome, list[Operator])]]:
+def operator(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: list[int], p=2) -> np.ndarray[list[(Monome, list[OperatorForm])]]:
     variables = generate_variables_list(nvarsym, n)
     monomes = generate_appearing_monoms(variables, n, min_order=1)
     finvs = find_fundamental_invariants(variables, n)
@@ -382,7 +393,7 @@ def operator(name: str, n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry
     return op
 
 """
-H = Operator("H(1, 1)", [])
+H = OperatorForm("H(1, 1)", [])
 
 H += OperatorComponent.X(0, 0)
 H += OperatorComponent.X(-1, 2)
