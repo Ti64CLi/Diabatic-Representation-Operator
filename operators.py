@@ -321,9 +321,9 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
                     continue
                 elif k >= 0:
                     if sigma1 * sigma2 > 0:
-                        Ay += OperatorComponent.X(-sigma2, k, monome)
+                        Ay += OperatorComponent.Y(-sigma2, k, monome)
                     else:
-                        Ay += OperatorComponent.X_tilde(-sigma2, k, monome)
+                        Ay += OperatorComponent.Y_tilde(-sigma2, k, monome)
 
         for sigma1 in [-1, 1]:
             for sigma2 in [-1, 1]:
@@ -334,9 +334,9 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, p: int) -> lis
                     continue
                 elif k >= 0:
                     if sigma1 * sigma2 > 0:
-                        Ay -= OperatorComponent.X(-sigma2, k, monome)
+                        Ay -= OperatorComponent.Y(-sigma2, k, monome)
                     else:
-                        Ay -= OperatorComponent.X_tilde(-sigma2, k, monome)
+                        Ay -= OperatorComponent.Y_tilde(-sigma2, k, monome)
 
         if s == 8:
             break
