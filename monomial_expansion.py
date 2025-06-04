@@ -58,14 +58,31 @@ class MonomialExpansion:
         return res
 
     def extract_order(self, order: int):
-        assert order > 0
+        assert order >= 0
 
         if self.expansion.get(order) is None:
             return MonomialExpansion({})
 
-        return MonomialExpansion(self.expansion[order].copy())
+        return MonomialExpansion({order: self.expansion[order].copy()})
 
+    def reduce(self, monome: Monome):
+        newexp = MonomialExpansion({})
 
+        for order, exp in self.expansion.items():
+            for m, coeff in exp.items():
+                totalorder = order * m.weight()
+
+                if totalorder % monome.weight() != 0 or totalorder < monome.weight():
+                    continue
+
+                neworder = totalorder // monome.weight()
+
+                if newexp.expansion.get(neworder) is None:
+                    newexp.expansion[neworder] = {}
+
+                newexp.expansion[neworder][monome] = coeff
+
+        return newexp
 
 def filter_appearing_variables(variables: list[Variable]) -> list[Variable]:
     """
