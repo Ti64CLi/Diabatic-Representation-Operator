@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from collections import Counter
 from symmetry import Symmetry
-from variable import Variable
+from variable import Variable, generate_variables_list
 from monome import Monome
-from monomial_expansion import MonomialExpansion
+from monomial_expansion import MonomialExpansion, generate_appearing_monoms, find_fundamental_invariants
 import numpy as np
 from utils import *
 
@@ -32,7 +32,7 @@ class Operator:
 
         for i in range(n):
             for j in range(m):
-                newop[i, j] += other[i, j]
+                newop.expansion[i, j] += other.expansion[i, j]
 
         return newop
 
@@ -102,6 +102,26 @@ class Operator:
 
         self.__apply_mask(mask)
 
+    def up_to_order(self, max_order: int):
+        n, m = self.expansion.shape
+        newexp = np.full((n, m), MonomialExpansion({}))
+
+        for i in range(n):
+            for j in range(m):
+                newexp[i, j] = self.expansion[i, j].up_to_order(max_order)
+
+        return Operator(newexp)
+
+    def reduce(self, monome: Monome):
+        n, m = self.expansion.shape
+        newexp = np.full((n, m), MonomialExpansion({}))
+
+        for i in range(n):
+            for j in range(m):
+                newexp[i, j] = self.expansion[i, j].reduce(monome)
+
+        return Operator(newexp)
+
 
 def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> Operator:
     assert opsymmetry.compute_gamma(n) >= 0
@@ -134,12 +154,8 @@ def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
                         continue
                     elif k >= 0:
                         if sigma1 * sigma2 > 0:
-                            #print("Adding X^"+str(k)+"_"+str(-sigma2))
-                            #Ax += OperatorComponent.X(-sigma2, k, monome)
                             Ax.add_X(monome, k, -sigma2, 1)
                         else:
-                            #print("Adding X~^"+str(k)+"_"+str(-sigma2))
-                            #Ax += OperatorComponent.X_tilde(-sigma2, k, monome)
                             Ax.add_X_tilde(monome, k, -sigma2, 1)
 
         if s == 8:
@@ -182,10 +198,8 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
                         continue
                     elif k >= 0:
                         if sigma1 * sigma2 > 0:
-                            #Ay += OperatorComponent.X(-sigma2, k, monome)
                             Ay.add_Y(monome, k, -sigma2, sg)
                         else:
-                            #Ay += OperatorComponent.X_tilde(-sigma2, k, monome)
                             Ay.add_Y_tilde(monome, k, -sigma2, sg)
 
         if s == 8:
@@ -196,3 +210,42 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
     Ay.apply_states_symmetries(n, s1, s2)
 
     return Ay
+
+def operator_form(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> tuple[Operator, Operator]:
+    return (A_x(n, opsymmetry, s1, s2, max_order), A_y(n, opsymmetry, s1, s2, max_order))
+
+def operator(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: list[int], max_order: int) -> np.ndarray[tuple[Operator, Operator]]:
+    """
+    Computes the expansion (to order p) of an operator given its symmetry, the symmetry of each state and the symmetry of each variable
+
+    Args :
+        - n : type of point group (C_nv)
+        - opsymmetry : operator symmetry (A1/2, B1/2, E)
+        - s1 : symmetry of the first state
+        - s2 : symmetry of the second state
+        - nvarsym : list of number of variables of each symmetry
+        - max_order : max order of the expansion
+    """
+    if (opsymmetry.is_B() or s1.is_B() or s2.is_B()) and n % 2 != 0:
+        raise ValueError("n should be even for a B symmetry")
+
+    variables = generate_variables_list(nvarsym, n)
+    monomes = generate_appearing_monoms(variables, n, min_order=1)
+    finvs = find_fundamental_invariants(variables, n)
+
+    opforms = np.array([
+        # 11, 12
+        [operator_form(n, opsymmetry, s1, s1, max_order), operator_form(n, opsymmetry, s1, s2, max_order)],
+        # 21, 22
+        [operator_form(n, opsymmetry, s2, s1, max_order), operator_form(n, opsymmetry, s2, s2, max_order)]
+    ])
+
+    op = np.full((2, 2, 2), Operator(np.full((2, 2), MonomialExpansion({}))))
+
+    for monome in monomes:
+        for i in range(2):
+            for j in range(2):
+                op[i, j][0] += opforms[i, j][0].reduce(monome)
+                op[i, j][1] += opforms[i, j][1].reduce(monome)
+
+    return op
