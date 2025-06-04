@@ -20,8 +20,13 @@ class MonomialExpansion:
 
         s = ""
 
-        for order in self.expansion:
-            for monome, coeff in self.expansion[order].items():
+        for order, exp in self.expansion.items():
+            if order == 0 and len(exp) != 0:
+                s += "+1"
+
+                continue
+
+            for monome, coeff in exp.items():
                 if coeff != 0:
                     if coeff.real != 0:
                         s += sign(coeff.real)
@@ -38,18 +43,26 @@ class MonomialExpansion:
 
         res = MonomialExpansion({})
 
-        for order in self.expansion:
-            if other.expansion.get(order) is None:
-                res.expansion[order] = self.expansion[order].copy()
-            else:
-                res.expansion[order] = other.expansion[order].copy()
+        for order, exp in self.expansion.items():
+            if order == 0:
+                res.expansion[order] = {}
 
-                if self.expansion.get(order) is not None:
-                    for monome in self.expansion[order]:
-                        if res.expansion[order].get(monome) is None:
-                            res.expansion[order][monome] = self.expansion[order][monome]
-                        else:
-                            res.expansion[order][monome] += self.expansion[order][monome]
+                for monome, coeff in exp.items():
+                    if coeff.real != 0:
+                        res.expansion[order][monome] = coeff
+
+                        break
+
+                continue
+
+            res.expansion[order] = exp.copy()
+
+            if other.expansion.get(order) is not None:
+                for monome, coeff in other.expansion[order].items():
+                    if res.expansion[order].get(monome) is None:
+                        res.expansion[order][monome] = coeff
+                    else:
+                        res.expansion[order][monome] += coeff
 
         for order in other.expansion:
             if res.expansion.get(order) is None:
@@ -72,7 +85,7 @@ class MonomialExpansion:
             for m, coeff in exp.items():
                 totalorder = order * m.weight()
 
-                if totalorder % monome.weight() != 0 or totalorder < monome.weight():
+                if order != 0 and (totalorder % monome.weight() != 0 or totalorder < monome.weight()):
                     continue
 
                 neworder = totalorder // monome.weight()
