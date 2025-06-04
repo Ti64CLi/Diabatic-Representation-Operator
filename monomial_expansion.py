@@ -84,6 +84,9 @@ class MonomialExpansion:
 
         return newexp
 
+    def up_to_order(self, max_order: int):
+        return MonomialExpansion({order: exp for order, exp in self.expansion.items() if order <= max_order})
+
 def filter_appearing_variables(variables: list[Variable]) -> list[Variable]:
     """
     Filter variables to keep only appearing ones (excludes A1 variables)
