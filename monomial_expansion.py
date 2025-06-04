@@ -21,9 +21,7 @@ class MonomialExpansion:
         s = ""
 
         for order in self.expansion:
-            for monome in self.expansion[order]:
-                coeff = self.expansion[order][monome]
-
+            for monome, coeff in self.expansion[order].items():
                 if coeff != 0:
                     if coeff.real != 0:
                         s += sign(coeff.real)
