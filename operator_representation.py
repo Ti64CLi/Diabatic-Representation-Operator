@@ -45,6 +45,16 @@ class Operator:
             for j in range(m):
                 self.expansion[i, j] += MonomialExpansion({order: {monome: matrix[i, j]}})
 
+    def __apply_mask(self, mask: np.ndarray):
+        assert mask.shape == self.expansion.shape
+
+        n, m = self.expansion.shape
+
+        for i in range(n):
+            for j in range(m):
+                if mask[i, j] == 0:
+                    self.expansion[i, j] = MonomialExpansion({})
+
     def add_X(self, monome: Monome, order: int, sigma: int, sign: int):
         self.__add_matrix(monome, order, sign * np.array([
             [1, sigma * 1j],
@@ -75,9 +85,22 @@ class Operator:
 
         for i in range(n):
             for j in range(m):
-                newexp[i, j] = newexp[i, j].extract_order(order)
+                newexp[i, j] = self.expansion[i, j].extract_order(order)
 
         return Operator(newexp)
+
+    def apply_states_symmetries(self, n: int, s1: Symmetry, s2: Symmetry):
+        if (s1.is_B() or s2.is_B()) and n % 2 != 0:
+            raise ValueError("n should be even for a B symmetry")
+
+        mask = np.ones((2, 2))
+
+        if not s1.is_E():
+            mask[(s1.value() + 1) % 2, :] = 0
+        if not s2.is_E():
+            mask[:, (s2.value() + 1) % 2] = 0
+
+        self.__apply_mask(mask)
 
 
 def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> Operator:
@@ -124,6 +147,8 @@ def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
 
         j += 1
 
+    Ax.apply_states_symmetries(n, s1, s2)
+
     return Ax
 
 def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> Operator:
@@ -167,5 +192,7 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
             break
 
         j += 1
+
+    Ay.apply_states_symmetries(n, s1, s2)
 
     return Ay
