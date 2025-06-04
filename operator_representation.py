@@ -232,19 +232,31 @@ def operator(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: 
     variables = generate_variables_list(nvarsym, n)
     monomes = generate_appearing_monoms(variables, n, min_order=1)
     finvs = find_fundamental_invariants(variables, n)
+    n, m = 2, 2
+    states = (s1, s2)
 
-    opforms = np.array([
+    if s1 == s2:
+        n, m = 1, 1
+        states = (s1,)
+
+    opforms = np.empty((n, m), dtype=object)
+
+    for i in range(n):
+        for j in range(m):
+            opforms[i, j] = operator_form(n, opsymmetry, states[i], states[j], max_order)
+
+    """opforms = np.array([
         # 11, 12
         [operator_form(n, opsymmetry, s1, s1, max_order), operator_form(n, opsymmetry, s1, s2, max_order)],
         # 21, 22
         [operator_form(n, opsymmetry, s2, s1, max_order), operator_form(n, opsymmetry, s2, s2, max_order)]
-    ])
+    ])"""
 
-    op = np.full((2, 2, 2), Operator(np.full((2, 2), MonomialExpansion({}))))
+    op = np.full((n, m, 2), Operator(np.full((2, 2), MonomialExpansion({}))))
 
     for monome in monomes:
-        for i in range(2):
-            for j in range(2):
+        for i in range(n):
+            for j in range(m):
                 op[i, j][0] += opforms[i, j][0].reduce(monome)
                 op[i, j][1] += opforms[i, j][1].reduce(monome)
 
