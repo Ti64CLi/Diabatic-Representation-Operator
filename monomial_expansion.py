@@ -4,28 +4,70 @@ from itertools import combinations_with_replacement
 from monome import Monome
 from variable import Variable
 from invariant import ComplexInvariant
+from utils import sign, num2sup
+
+type ExpansionTerm = dict[Monome, complex]
 
 @dataclass
 class MonomialExpansion:
-    monomials: list[Monome]
+    # [order -> [Monome -> count]]
+    # ex : [1 -> [Q+ -> +i, Q+2 -> -1]]
+    expansion: dict[int, ExpansionTerm]
 
     def __str__(self) -> str:
-        cmonoms = Counter(self.monomials)
+        if len(self.expansion) == 0:
+            return "0"
 
-        return '+'.join(+cmonoms)
+        s = ""
+
+        for order in self.expansion:
+            for monome in self.expansion[order]:
+                coeff = self.expansion[order][monome]
+
+                if coeff != 0:
+                    if coeff.real != 0:
+                        s += sign(coeff.real)
+                        s += f"Re(({monome}){num2sup(order)})"
+
+                    if coeff.imag != 0:
+                        s += sign(coeff.imag)
+                        s += f"Im(({monome}){num2sup(order)})"
+
+        return s
 
     def __add__(self, other):
         assert isinstance(other, MonomialExpansion)
 
-        return MonomialExpansion(self.monomials + other.monomials)
+        res = MonomialExpansion({})
 
-    def __sub__(self, other):
-        assert isinstance(other, MonomialExpansion)
+        for order in self.expansion:
+            if other.expansion.get(order) is None:
+                res.expansion[order] = self.expansion[order].copy()
+            else:
+                res.expansion[order] = other.expansion[order].copy()
 
-        monoms = Counter(self.monomials)
-        omonoms = Counter(other.monomials)
+                if self.expansion.get(order) is not None:
+                    for monome in self.expansion[order]:
+                        if res.expansion[order].get(monome) is None:
+                            res.expansion[order][monome] = self.expansion[order][monome]
+                        else:
+                            res.expansion[order][monome] += self.expansion[order][monome]
 
-        return MonomialExpansion(list((monoms-omonoms).elements()))
+        for order in other.expansion:
+            if res.expansion.get(order) is None:
+                res.expansion[order] = other.expansion[order].copy()
+
+        return res
+
+    def extract_order(self, order: int):
+        assert order > 0
+
+        if self.expansion.get(order) is None:
+            return MonomialExpansion({})
+
+        return MonomialExpansion(self.expansion[order].copy())
+
+
 
 def filter_appearing_variables(variables: list[Variable]) -> list[Variable]:
     """
