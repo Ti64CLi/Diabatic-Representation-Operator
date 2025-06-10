@@ -3,7 +3,7 @@ from collections import Counter
 from itertools import combinations_with_replacement
 from monome import Monome
 from variable import Variable
-from invariant import ComplexInvariant
+from invariant import InvariantType
 from utils import sign, num2sup
 
 type ExpansionTerm = dict[Monome, complex]
@@ -164,46 +164,107 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
             monoms[m] = 1
 
     return list(monoms.elements())
-
-def find_fundamental_invariants(variables: list[Variable], n: int, min_order: int = 0, max_order: int = None, remove_cc: bool = True) -> list[ComplexInvariant]:
-    """
-    Find the fundamental invariants, those which cannot be factorize anymore
-    """
+"""
+def find_fundamental_invariants(variables: list[Variable], n: int, min_order: int = 1, max_order: int = None, remove_cc: bool = True) -> tuple[list[ComplexInvariant], list[Monome]]:
     if max_order is None:
         max_order = n
 
     fundamentals = []
 
-    for order in range(1, max_order + 1):
+    for order in range(min_order, max_order + 1):
         monoms = generate_monoms(variables, order, n, remove_factorizable=False, remove_cc=remove_cc)
 
         for m in monoms:
-            if m.weight_mod(n) != 0:
+            if not m.is_factorisable(n):
                 continue
 
             if not try_to_factorize(m, fundamentals):
                 fundamentals.append(m)
 
-    return [ComplexInvariant(finv, finv.is_real()) for finv in fundamentals]
+    return ([ComplexInvariant(finv, finv.is_real()) for finv in fundamentals], [Monome(finv.variables, complex_conjugate=False, real=False, imag=True) for finv in fundamentals if not finv.is_real()])
+"""
 
-def generate_appearing_monoms(variables: list[Variable], n: int, min_order: int = 0, max_order:int = None, remove_cc: bool = True) -> list[Monome]:
+def generate_invariants_and_monoms(variables: list[Variable], n: int, min_order: int = 0, max_order: int = None, remove_cc: bool = True) -> tuple[list[Monome], list[Monome], list[Monome]]:
     """
-    Generate all appearing monomials
+    Generate all invariants, and returns the additional monoms that can appear alongside the appearing monomials
     """
     if max_order is None:
         max_order = n
 
-    avariables = filter_appearing_variables(variables)
-    finvs = list(map(lambda x:x.monome, find_fundamental_invariants(avariables, n, min_order=min_order, max_order=max_order, remove_cc=remove_cc)))
+    invs = []
+    rhos = []
+    amonoms = []
+
+    for order in range(1, max_order + 1):
+        monoms = generate_monoms(variables, order, n, remove_factorizable=False, remove_cc=remove_cc)
+
+        for m in monoms:
+            if try_to_factorize(m, invs) or try_to_factorize(m.conjugate(), invs) or m.weight() > n:
+                continue
+
+            if m.is_Cn_invariant(n):
+                if m.is_sigman_invariant(n):
+                    invs.append(Monome(m.variables, complex_conjugate=m.complex_conjugate, invariant_type=InvariantType.full_invariant()))
+                else:
+                    if not m.is_pure_imag():
+                        invs.append(Monome(m.variables, complex_conjugate=m.complex_conjugate, invariant_type=InvariantType.real_invariant()))
+
+                    invs.append(Monome(m.variables, complex_conjugate=m.complex_conjugate, invariant_type=InvariantType.pseudo_invariant()))
+                    rhos.append(Monome(m.variables, complex_conjugate=m.complex_conjugate, invariant_type=InvariantType(invariant=False, real=False, imag=True)))
+            else:
+                amonoms.append(m)
+
+    return (invs, rhos, amonoms)
+
+"""
+def compute_invariants_and_monoms(variables: list[Variable], n: int, min_order: int = 1, max_order: int = None, remove_cc: bool = True) -> tuple[list[Monome], list[Monome]]:
+    if max_order is None:
+        max_order = n
+
+    monoms = []
+    invariants = []
+
+    for order in range(1, max_order + 1):
+        raw_monoms = generate_monoms(variables, order, n, remove_factorizable=False, remove_cc=remove_cc)
+
+        for m in raw_monoms:
+            if m.is_Cn_invariant(n): # weight sum is 0
+                #if not m.is_pure_imag():
+                invariants.append(Monome(m.variables, m.complex_conjugate, InvariantType.real_invariant()))
+
+                if not m.is_sigman_invariant(n): # anti symmetric under sigma_n
+                    invariants.append(Monome(m.variables + m.variables, m.complex_conjugate, InvariantType.real_invariant()))
+                    monoms.append(Monome(m.variables, m.complex_conjugate, InvariantType.pseudo_invariant()))
+            else:
+                monoms.append(m)
+
+    return (
+        #[m for m in monoms if not try_to_factorize(m, invariants) and not try_to_factorize(m.conjugate(), invariants) and abs(m.weight()) <= max_order and (not remove_cc or m.weight() >= 0)],
+        monoms,
+        #[inv for inv in invariants if not try_to_factorize(inv, invariants) and not try_to_factorize(inv.conjugate(), invariants) and abs(m.weight()) <= max_order and (not remove_cc or m.weight() >= 0)]
+        invariants
+    )
+"""
+
+"""
+def generate_appearing_monoms(variables: list[Variable], n: int, min_order: int = 0, max_order: int = None, remove_cc: bool = True) -> list[Monome]:
+    if max_order is None:
+        max_order = n
+
+    #avariables = filter_appearing_variables(variables)
+    finvs, finvs_monoms = find_fundamental_invariants(variables, n, min_order=min_order, max_order=max_order, remove_cc=remove_cc)
+    finvs = list(map(lambda x:x.monome, finvs))
     monoms = []
     amonoms = []
 
     for order in range(min_order, max_order + 1):
-        monoms.extend(generate_monoms(avariables, order, n, remove_factorizable=True, remove_cc=remove_cc))
+        monoms.extend(generate_monoms(variables, order, n, remove_factorizable=True, remove_cc=remove_cc))
 
     for m in monoms:
         # need to check for max order since a variable doesn't necessarily have a weight of +/- 1
-        if not try_to_factorize(m, finvs) and not try_to_factorize(m.conjugate(), finvs) and m.weight() >= 0 and m.weight() <= max_order:
-            amonoms.append(m)
+        if not try_to_factorize(m, finvs) and not try_to_factorize(m.conjugate(), finvs) and abs(m.weight()) <= max_order:
+            if not remove_cc or m.weight() >= 0:
+                amonoms.append(m)
 
     return amonoms
+"""
