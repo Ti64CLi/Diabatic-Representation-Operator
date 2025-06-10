@@ -3,7 +3,7 @@ from collections import Counter
 from symmetry import Symmetry
 from variable import Variable, generate_variables_list
 from monome import Monome
-from monomial_expansion import MonomialExpansion, generate_appearing_monoms, find_fundamental_invariants
+from monomial_expansion import MonomialExpansion, generate_invariants_and_monoms
 import numpy as np
 from utils import *
 
@@ -230,8 +230,7 @@ def operator(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: 
         raise ValueError("n should be even for a B symmetry")
 
     variables = generate_variables_list(nvarsym, n)
-    monomes = generate_appearing_monoms(variables, n, min_order=1)
-    finvs = find_fundamental_invariants(variables, n)
+    finvs, rhos, monoms = generate_invariants_and_monoms(variables, n)
     n, m = 2, 2
     states = (s1, s2)
 
@@ -254,7 +253,7 @@ def operator(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: 
 
     op = np.full((n, m, 2), Operator(np.full((2, 2), MonomialExpansion({}))))
 
-    for monome in monomes:
+    for monome in monoms:
         for i in range(n):
             for j in range(m):
                 op[i, j][0] += opforms[i, j][0].reduce(monome)
