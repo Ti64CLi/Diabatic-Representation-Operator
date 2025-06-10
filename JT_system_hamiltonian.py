@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 19 14:09:13 2025
-
-@author: elidumont
-"""
-
 import operators as op
 from symmetry import Symmetry
 
@@ -44,21 +36,21 @@ def hamiltonian(n, alpha, p, name = "H"):
 
     return H
 
-"""
-H11 = op.operator_form("H(1,1)", 6, Symmetry("A1"), Symmetry("E", gamma=1), Symmetry("E", gamma=1), p=4)
-print(H11)
-for p in range(5):
-    print("\nAt order p =", p, ":")
-    print(H11[0].extract_order(p))
+
+# H11 = op.operator_form("H(1,1)", 6, Symmetry("A1"), Symmetry("E", gamma=1), Symmetry("E", gamma=1), p=4)
+# print(H11)
+# for p in range(5):
+#     print("\nAt order p =", p, ":")
+#     print(H11[0].extract_order(p))
 
 
-H22 = op.operator_form("H(2,2)", 6, Symmetry("A1"), Symmetry("E", gamma=2), Symmetry("E", gamma=2), p=4)
-print(H22)
-print(H22[0].reduce(2))
-for p in range(5):
-    print("\nAt order p =", p, ":")
-    print(H22[0].extract_order(p))
-"""
+# H22 = op.operator_form("H(2,2)", 6, Symmetry("A1"), Symmetry("E", gamma=2), Symmetry("E", gamma=2), p=4)
+# print(H22)
+# print(H22[0].reduce(2))
+# for p in range(5):
+#     print("\nAt order p =", p, ":")
+#     print(H22[0].extract_order(p))
+
 H12 = op.operator_form("H(1,2)", 6, Symmetry("A1"), Symmetry("E", gamma=1), Symmetry("E", gamma=2), p=4)
 print(H12)
 for p in range(5):

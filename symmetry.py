@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed May 21 09:54:05 2025
-
-@author: elidumont
-"""
-
 from dataclasses import dataclass
 from typing import Optional
 

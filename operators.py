@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon May 19 10:50:49 2025
-
-@author: elidumont
-"""
-
 import numpy as np
 from symmetry import Symmetry
 from variable import generate_variables_list, Variable
@@ -25,18 +17,18 @@ class OperatorComponent:
     """
 
     def __init__(self, m: np.ndarray, k: int, monome: Monome):
-        #assert isinstance(ctype, str)
+        # assert isinstance(ctype, str)
         assert m.shape == (2, 2)
         assert isinstance(k, int)
         assert k >= 0
 
-        #self.ctype = ctype
+        # self.ctype = ctype
         self.matrix = m[:, :]
         self.k = k
         self.monome = monome
 
     def __str__(self) -> str:
-        #s = self.ctype + "^" + str(self.k) + " = \n"
+        # s = self.ctype + "^" + str(self.k) + " = \n"
         s = ""
 
         for i in range(2):
@@ -53,7 +45,7 @@ class OperatorComponent:
                     s += f"Im(({str(self.monome)})" + num2sup(self.k) + ") "
             s += ")\n"
 
-        #s += "k = " + str(self.k) + " and sigma = " + str(self.sigma) + "\n"
+        # s += "k = " + str(self.k) + " and sigma = " + str(self.sigma) + "\n"
 
         return s
 
