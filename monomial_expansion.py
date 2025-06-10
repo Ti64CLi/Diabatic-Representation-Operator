@@ -184,7 +184,7 @@ def generate_monoms(variables: list[Variable], order: int, n: int, remove_factor
 #     return ([ComplexInvariant(finv, finv.is_real()) for finv in fundamentals], [Monome(finv.variables, complex_conjugate=False, real=False, imag=True) for finv in fundamentals if not finv.is_real()])
 
 
-def generate_invariants_and_monoms(variables: list[Variable], n: int, min_order: int = 0, max_order: int = None, remove_cc: bool = True) -> tuple[list[Monome], list[Monome], list[Monome]]:
+def generate_invariants_and_monoms(variables: list[Variable], n: int, min_order: int = 1, max_order: int = None, remove_cc: bool = True) -> tuple[list[Monome], list[Monome], list[Monome]]:
     """
     Generate all invariants, and returns the additional monoms that can appear alongside the appearing monomials
     """
@@ -195,7 +195,7 @@ def generate_invariants_and_monoms(variables: list[Variable], n: int, min_order:
     rhos = []
     amonoms = []
 
-    for order in range(1, max_order + 1):
+    for order in range(min_order, max_order + 1):
         monoms = generate_monoms(variables, order, n, remove_factorizable=False, remove_cc=remove_cc)
 
         for m in monoms:
