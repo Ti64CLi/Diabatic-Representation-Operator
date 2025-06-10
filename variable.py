@@ -9,17 +9,18 @@ class Variable:
     complex_conjugate: bool = False
 
     def __str__(self) -> str:
-        s = f"{self.name}{sign2sub(-1 if self.complex_conjugate else 1)}"
+        if not self.symmetry.is_E():
+            return f"{self.name}"
 
-        return s + (num2sub(self.symmetry.gamma) if self.symmetry.is_E() and self.symmetry.gamma > 1 else "")
+        return f"{self.name}{sign2sub(-1 if self.complex_conjugate else 1)}{(num2sub(self.symmetry.gamma) if self.symmetry.is_E() and self.symmetry.gamma > 1 else "")}"
 
     def __eq__(self, other) -> bool:
         assert isinstance(other, Variable)
 
-        return self.name == other.name and self.symmetry == other.symmetry # is complex_conjugate equal or not ?
+        return self.name == other.name and self.symmetry == other.symmetry and self.complex_conjugate == other.complex_conjugate # is complex_conjugate equal or not ?
 
     def conjugate(self):
-        if not self.symmetry.is_E():
+        if self.symmetry.is_A1() or self.symmetry.is_B1():
             return self
 
         return Variable(self.name, self.symmetry, complex_conjugate=not self.complex_conjugate)
@@ -31,6 +32,9 @@ class Variable:
 
     def is_real(self) -> bool:
         return self.symmetry.is_A1() or self.symmetry.is_B1()
+
+    def is_imag(self) -> bool:
+        return self.symmetry.is_A2() or self.symmetry.is_B2()
 
 def generate_variables_list(nvarsym: list[int], n: int) -> list[Variable]:
     """
