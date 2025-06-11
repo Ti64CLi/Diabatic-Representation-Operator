@@ -1,16 +1,28 @@
 from dataclasses import dataclass
 from collections import Counter
 from itertools import combinations_with_replacement
+from typing import Optional
 from monome import Monome
 from variable import Variable
 from invariant import InvariantType
 from utils import sign, num2sup
 
-type ExpansionTerm = dict[Monome, complex]
+type ExpansionTerm = dict[MonomialTerm, complex]
+
+# MonomialTerm implements the conjunction of a monome
+# with a rho, which is fundamental for a
+# MonomialExpansion
+@dataclass
+class MonomialTerm:
+    monome: Monome
+    rho: Optional[Monome] = None
+
+    def __str__(self) -> str:
+        return f"{self.rho}*{self.monome}" if rho is not None else f"{self.monome}"
 
 @dataclass
 class MonomialExpansion:
-    # [order -> [Monome -> count]]
+    # [order -> [MonomialTerm -> count]]
     # ex : [1 -> [Q+ -> +i, Q+2 -> -1]]
     expansion: dict[int, ExpansionTerm]
 
