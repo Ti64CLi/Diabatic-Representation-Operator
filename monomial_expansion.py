@@ -30,11 +30,11 @@ class MonomialExpansion:
                 if coeff != 0:
                     if coeff.real != 0:
                         s += sign(coeff.real)
-                        s += f"Re(({monome}){num2sup(order)})"
+                        s += f"Re(({monome}){num2sup(order)})" if order > 1 else f"Re({monome})"
 
                     if coeff.imag != 0:
                         s += sign(coeff.imag)
-                        s += f"Im(({monome}){num2sup(order)})"
+                        s += f"Im(({monome}){num2sup(order)})" if order > 1 else f"Im({monome})"
 
         return s
 
