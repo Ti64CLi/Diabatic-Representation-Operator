@@ -42,7 +42,7 @@ class Monome:
         # should we test for equality of complex_conjugate ?
         # it's supposed to be equal if variables are equal
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         # doesn't integrate self.complex_conjugate because of its variant character
         return hash(str(self.variables) + str(self.invariant_type))
 
