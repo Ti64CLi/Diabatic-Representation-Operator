@@ -7,8 +7,6 @@ from variable import Variable
 from invariant import InvariantType
 from utils import sign, num2sup
 
-type ExpansionTerm = dict[MonomialTerm, complex]
-
 # MonomialTerm implements the conjunction of a monome
 # with a rho, which is fundamental for a
 # MonomialExpansion
@@ -18,7 +16,15 @@ class MonomialTerm:
     rho: Optional[Monome] = None
 
     def __str__(self) -> str:
-        return f"{self.rho}*{self.monome}" if rho is not None else f"{self.monome}"
+        return f"{self.rho}*{self.monome}" if self.rho is not None else f"{self.monome}"
+
+    def __hash__(self) -> int:
+        return hash(str(self.monome) + str(self.rho))
+
+    def weight(self):
+        return self.monome.weight()
+
+type ExpansionTerm = dict[MonomialTerm, complex]
 
 @dataclass
 class MonomialExpansion:
@@ -38,15 +44,15 @@ class MonomialExpansion:
 
                 continue
 
-            for monome, coeff in exp.items():
+            for mterm, coeff in exp.items():
                 if coeff != 0:
                     if coeff.real != 0:
                         s += sign(coeff.real)
-                        s += f"Re(({monome}){num2sup(order)})" if order > 1 else f"Re({monome})"
+                        s += f"Re(({mterm}){num2sup(order)})" if order > 1 else f"Re({mterm})"
 
                     if coeff.imag != 0:
                         s += sign(coeff.imag)
-                        s += f"Im(({monome}){num2sup(order)})" if order > 1 else f"Im({monome})"
+                        s += f"Im(({mterm}){num2sup(order)})" if order > 1 else f"Im({mterm})"
 
         return s
 
@@ -59,9 +65,9 @@ class MonomialExpansion:
             if order == 0:
                 res.expansion[order] = {}
 
-                for monome, coeff in exp.items():
+                for mterm, coeff in exp.items():
                     if coeff.real != 0:
-                        res.expansion[order][monome] = coeff
+                        res.expansion[order][mterm] = coeff
 
                         break
 
@@ -70,17 +76,28 @@ class MonomialExpansion:
             res.expansion[order] = exp.copy()
 
             if other.expansion.get(order) is not None:
-                for monome, coeff in other.expansion[order].items():
-                    if res.expansion[order].get(monome) is None:
-                        res.expansion[order][monome] = coeff
+                for mterm, coeff in other.expansion[order].items():
+                    if res.expansion[order].get(mterm) is None:
+                        res.expansion[order][mterm] = coeff
                     else:
-                        res.expansion[order][monome] += coeff
+                        res.expansion[order][mterm] += coeff
 
         for order in other.expansion:
             if res.expansion.get(order) is None:
                 res.expansion[order] = other.expansion[order].copy()
 
+        res.__update()
+
         return res
+
+    def __update(self):
+        for order in list(self.expansion.keys()):
+            for mterm in list(self.expansion[order].keys()):
+                if self.expansion[order][mterm] == 0:
+                    self.expansion[order].pop(mterm)
+
+            if len(self.expansion[order]) == 0:
+                self.expansion.pop(order)
 
     def extract_order(self, order: int):
         assert order >= 0
@@ -94,8 +111,8 @@ class MonomialExpansion:
         newexp = MonomialExpansion({})
 
         for order, exp in self.expansion.items():
-            for m, coeff in exp.items():
-                totalorder = order * m.weight()
+            for mterm, coeff in exp.items():
+                totalorder = order * mterm.weight()
 
                 if order != 0 and (totalorder % monome.weight() != 0 or totalorder < monome.weight()):
                     continue
