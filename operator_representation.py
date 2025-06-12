@@ -122,6 +122,40 @@ class Operator:
 
         return Operator(newexp)
 
+    def compile(self) -> str:
+        """
+        compile Operator data structure into some basic csv format
+        the csv is as follow :
+        -> CSV file :
+        # metada
+
+        ; section 1 : generale info (for redundancy)
+        n, op_sym, state1_sym, state2_sym
+        ; *_sym are of the Symmetry type which gives the following values :
+        ; A1 -> 0, A2 -> 1, B1 -> 2, B2 -> 2 and E_alpha -> 3 + alpha (E_1 would be 4, E_2 5, etc)
+
+        ; section 2 : variables declaration
+        n_A1, n_A2, n_B1, n_B2, n_E_alpha, ...
+
+        ; section 3 : pseudo variables
+        ; pseudo variables are declared from variables from section 2 using the following format
+        : pvar_sym [pvar_idx]
+        +/-Re +/-Im
+        [var_sym +/-var_idx var_order]+
+        ; the + meaning it can repeat more than once (to represent multi variables pseudo variables)
+
+        ; section 4 : components
+        [var_sym +/-var_idx var_order]*
+        ; the * means it can repeat 0 or more times
+        ; then there are the components terms, the first 4 are for the X part of the operator, and the last 4 are for the Y part of the operator
+        +/-Re +/-Im, +/-Re +/-Im, +/-Re +/-Im, +/-Re +/-Im,  +/-Re +/-Im, +/-Re +/-Im, +/-Re +/-Im, +/-Re +/-Im
+        <---------------------X part---------------------> | <---------------------Y part--------------------->
+        ; and repeat for as much components as there are in the expansion
+        """
+
+        s = ""
+
+        return s
 
 def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> Operator:
     assert opsymmetry.compute_gamma(n) >= 0
