@@ -9,7 +9,14 @@ from utils import *
 
 @dataclass
 class Operator:
+    # group order
+    group_order: int
+    # operator symmetry
+    symmetry: Symmetry
+    # states symmetries
+    states_symmetries: list[Symmetry]
     # array of monomial expansion
+    # corresponding to OperatorComponent
     expansion: np.ndarray[MonomialExpansion]
 
     def __str__(self) -> str:
@@ -18,17 +25,21 @@ class Operator:
         s12 = str(self.expansion[0, 1])
         s21 = str(self.expansion[1, 0])
         s22 = str(self.expansion[1, 1])
+        
+        maxw1 = max(len(s11), len(s21))
+        maxw2 = max(len(s12), len(s22))
 
-        maxw = max(len(s11), len(s12), len(s21), len(s22))
-
-        return f"({s11}{" " * (maxw - len(s11))} | {s12}{" " * (maxw - len(s12))})\n({s21}{" " * (maxw - len(s21))} | {s22}{" " * (maxw - len(s22))})"
+        return f"({s11}{" " * (maxw1 - len(s11))} | {s12}{" " * (maxw2 - len(s12))})\n({s21}{" " * (maxw1 - len(s21))} | {s22}{" " * (maxw2 - len(s22))})"
 
     def __add__(self, other):
         assert isinstance(other, Operator)
         assert self.expansion.shape == other.expansion.shape
+        assert self.group_order == other.group_order
+        assert self.symmetry == other.symmetry
+        assert self.states_symmetries == other.states_symmetries
 
         n, m = self.expansion.shape
-        newop = Operator(self.expansion.copy())
+        newop = Operator(self.group_order, self.symmetry, self.states_symmetries, self.expansion.copy())
 
         for i in range(n):
             for j in range(m):
@@ -87,7 +98,7 @@ class Operator:
             for j in range(m):
                 newexp[i, j] = self.expansion[i, j].extract_order(order)
 
-        return Operator(newexp)
+        return Operator(self.group_order, self.symmetry, self.states_symmetries, newexp)
 
     def apply_states_symmetries(self, n: int, s1: Symmetry, s2: Symmetry):
         if (s1.is_B() or s2.is_B()) and n % 2 != 0:
@@ -110,7 +121,7 @@ class Operator:
             for j in range(m):
                 newexp[i, j] = self.expansion[i, j].up_to_order(max_order)
 
-        return Operator(newexp)
+        return Operator(self.group_order, self.symmetry, self.states_symmetries, newexp)
 
     def reduce(self, monome: Monome):
         n, m = self.expansion.shape
@@ -120,7 +131,7 @@ class Operator:
             for j in range(m):
                 newexp[i, j] = self.expansion[i, j].reduce(monome)
 
-        return Operator(newexp)
+        return Operator(self.group_order, self.symmetry, self.states_symmetries, newexp)
 
     def compile(self) -> str:
         """
@@ -157,6 +168,172 @@ class Operator:
 
         return s
 
+    def compile2(self, n: int, op_sym: Symmetry, s1: Symmetry, s2: Symmetry, other: 'Operator' = None) -> str:
+        """
+        Compiles the Operator (and optionally its Y counterpart) into the project's CSV format.
+ 
+        Args:
+            n: The group order (e.g. 3 for C3v).
+            op_sym: Symmetry of the operator.
+            s1: Symmetry of state 1.
+            s2: Symmetry of state 2.
+            other: The 'Y' component Operator. If None, Y parts are zeroed.
+        """
+
+        # --- Helper Functions ---
+        def format_complex(c: complex) -> str:
+            re_s = f"{c.real:+.8f}" if c.real != 0 else "+0"
+            im_s = f"{c.imag:+.8f}" if c.imag != 0 else "+0"
+            return f"{re_s} {im_s}"
+
+        def get_var_sym_code(sym: Symmetry) -> int:
+            # A1 -> 0, A2 -> 1, B1 -> 2, B2 -> 3, E_gamma -> 3 + gamma
+            val = sym.value() 
+            if sym.is_E():
+                return 3 + sym.gamma
+            return val
+
+        def get_var_idx(var: Variable) -> int:
+            # Assumes name format like "Q1", "R2" -> returns 1, 2
+            # Filter numeric part
+            num = "".join(filter(str.isdigit, var.name))
+            return int(num) if num else 0
+
+        # --- 1. Consolidate Terms from X (self) and Y (other) ---
+        # Map: MonomialTerm -> {'X': np.ndarray(2,2), 'Y': np.ndarray(2,2)}
+        term_map = {}
+
+        def collect_terms(op_obj, component_key):
+            if op_obj is None: return
+
+            # op_obj.expansion is np.ndarray[MonomialExpansion]
+            # print("op_obj.expansion :", type(op_obj.expansion))
+            rows, cols = op_obj.expansion.shape
+
+            for i in range(rows):
+                for j in range(cols):
+                    # expansion is MonomialExpansion
+                    expansion = op_obj.expansion[i, j]
+                    # print("\texpansion :", type(expansion))
+
+                    if not expansion.expansion: continue # Skip empty
+                    
+                    # expansion.expansion is dict[order, dict[Monome, complex]]
+                    # print("\t\texpansion.expansion :", type([*expansion.expansion][0]), ",", type([*expansion.expansion.values()][0]))
+                    for order_dict in expansion.expansion.values():
+                        # print("\t\t\torder_dict :", type([*order_dict][0]), ",", type([*order_dict.values()][0]))
+                        for mterm, coeff in order_dict.items():
+                            if mterm not in term_map:
+                                # print("\t\t\t\tmterm, coeff :", type(mterm), ',', type(coeff))
+                                term_map[mterm] = {
+                                    'X': np.zeros((2, 2), dtype=complex),
+                                    'Y': np.zeros((2, 2), dtype=complex)
+                                }
+
+                            term_map[mterm][component_key][i, j] += coeff
+
+        collect_terms(self, 'X')
+        collect_terms(other, 'Y')
+
+        # --- 2. Analyze Variables ---
+        # We need counts for n_A1, n_A2, n_B1, n_B2, n_E_1...
+        # We iterate all terms to find the max index used for each symmetry.
+        max_indices = {} # Map sym_code -> max_idx
+
+        for mterm in term_map.keys():
+            # Combine variables from rho and monome
+            all_vars = mterm.variables
+            for v in all_vars:
+                code = get_var_sym_code(v.symmetry)
+                idx = get_var_idx(v)
+                if idx > max_indices.get(code, 0):
+                    max_indices[code] = idx
+
+        # --- 3. Build CSV String ---
+        lines = []
+
+        # Metadata
+        lines.append("# metadata")
+        lines.append("; section 1 : general info (for redundancy)")
+        states_symmetries = []
+        for state_symmetry in self.states_symmetries:
+            states_symmetries.append(str(get_var_sym_code(state_symmetry)))
+        lines.append(f"{self.group_order}, {get_var_sym_code(self.symmetry)}, {', '.join(states_symmetries)}")
+
+        # Variables Declaration
+        # Order: n_A1(0), n_A2(1), n_B1(2), n_B2(3), n_E_1(4), ...
+        # We need to determine how many E_alphas exist. 
+        # Assuming we go up to the max key found in max_indices
+        max_sym_code = max(max_indices.keys()) if max_indices else 0
+        counts = []
+        # Standard symmetries 0-3 + Es starting at 4
+        limit = max(4, max_sym_code + 1) 
+
+        # Special handling: The format asks for n_E_alpha. 
+        # If code 4 is E_1, code 5 is E_2.
+        # We just output the list of counts ordered by code index? 
+        # "n_A1, n_A2, n_B1, n_B2, n_E_alpha, ..." implies specific order.
+        # We will output counts for indices 0, 1, 2, 3, 4, 5 ... 
+
+        for i in range(limit):
+            counts.append(str(max_indices.get(i, 0)))
+
+        lines.append("; section 2 : variables declaration")
+        lines.append(", ".join(counts))
+
+        # Pseudo Variables
+        lines.append("; section 3 : pseudo variables")
+
+
+
+        # Components
+        lines.append("; section 4 : components")
+
+        for mterm, mat_dict in term_map.items():
+            # 4a. Build the term definition string: [var_sym +/-var_idx var_order]*
+            term_parts = []
+
+            # Count variables in this term
+            all_vars = mterm.variables
+            var_counts = Counter()
+            # We need to distinguish variables by (symmetry, index, conjugate)
+            # Variable equality checks name/sym/conjugate.
+            for v in all_vars:
+                var_counts[v] += 1
+
+            for v, count in var_counts.items():
+                sym_code = get_var_sym_code(v.symmetry)
+                idx = get_var_idx(v)
+                # If conjugate, index is negative (based on usual conventions for this format)
+                final_idx = -idx if v.complex_conjugate else idx
+                term_parts.append(f"{sym_code} {final_idx} {count}")
+
+            term_def = ", ".join(term_parts)
+
+            # 4b. Build coefficients string
+            # X part (2x2) -> Y part (2x2)
+            # Flatten row-major: 00, 01, 10, 11
+            coeffs = []
+
+            # X Components
+            mx = mat_dict['X']
+            for r in range(2):
+                for c in range(2):
+                    coeffs.append(format_complex(mx[r, c]))
+
+            # Y Components
+            my = mat_dict['Y']
+            for r in range(2):
+                for c in range(2):
+                    coeffs.append(format_complex(my[r, c]))
+
+            coeffs_str = ", ".join(coeffs)
+
+            # Combine
+            lines.append(f"{term_def}, {coeffs_str}")
+
+        return "\n".join(lines)
+
 def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int) -> Operator:
     assert opsymmetry.compute_gamma(n) >= 0
     assert s1.compute_gamma(n) >= 0
@@ -164,7 +341,7 @@ def A_x(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
 
     variables = [Variable("Q", Symmetry("E", gamma=1))]
     monome = Monome(variables)
-    Ax = Operator(np.full((2, 2), MonomialExpansion({})))
+    Ax = Operator(n, opsymmetry, [s1, s2], np.full((2, 2), MonomialExpansion({})))
 
     if opsymmetry.is_A2() or opsymmetry.is_B2():
         return Ax
@@ -208,7 +385,7 @@ def A_y(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, max_order: int
 
     variables = [Variable("Q", Symmetry("E", gamma=1))]
     monome = Monome(variables)
-    Ay = Operator(np.full((2, 2), MonomialExpansion({})))
+    Ay = Operator(n, opsymmetry, [s1, s2], np.full((2, 2), MonomialExpansion({})))
 
     if opsymmetry.is_A1() or opsymmetry.is_B1():
         return Ay
@@ -285,7 +462,7 @@ def operator(n: int, opsymmetry: Symmetry, s1: Symmetry, s2: Symmetry, nvarsym: 
         [operator_form(n, opsymmetry, s2, s1, max_order), operator_form(n, opsymmetry, s2, s2, max_order)]
     ])"""
 
-    op = np.full((n, m, 2), Operator(np.full((2, 2), MonomialExpansion({}))))
+    op = np.full((n, m, 2), Operator(n, opsymmetry, [s1, s2], np.full((2, 2), MonomialExpansion({}))))
 
     for monome in monoms:
         for i in range(n):
